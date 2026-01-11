@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-         <!-- Google tag (gtag.js) -->
+          <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -15,49 +15,49 @@
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; }
         body { background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .container { background: var(--card); padding: 2.5rem; border-radius: 1.5rem; width: 400px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
-        .drop-zone { border: 2px dashed #475569; padding: 3rem 1rem; border-radius: 1rem; cursor: pointer; transition: 0.3s; margin-bottom: 1.5rem; background: rgba(255,255,255,0.02); }
+        .container { background: var(--card); padding: 2.5rem; border-radius: 1.5rem; width: 420px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+        .drop-zone { border: 2px dashed #475569; padding: 2.5rem 1rem; border-radius: 1rem; cursor: pointer; transition: 0.3s; margin-bottom: 1.5rem; background: rgba(255,255,255,0.02); }
         .drop-zone.drag-over { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
         .option-group { background: rgba(0,0,0,0.2); padding: 1.2rem; border-radius: 0.8rem; text-align: left; margin-bottom: 1.5rem; }
         label { display: block; font-size: 0.75rem; font-weight: bold; color: #94a3b8; margin-bottom: 0.5rem; }
         select, button { width: 100%; padding: 0.8rem; border-radius: 0.5rem; border: none; font-size: 1rem; }
-        select { background: #334155; color: white; margin-bottom: 1rem; }
-        .check-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
-        .check-row input { width: 18px; height: 18px; accent-color: var(--accent); }
+        select { background: #334155; color: white; margin-bottom: 1rem; outline: none; }
+        .check-row { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.9rem; }
         button { background: var(--accent); color: var(--bg); font-weight: bold; cursor: pointer; transition: 0.2s; }
         button:hover { background: #7dd3fc; }
-        #loading { display: none; color: var(--accent); margin-top: 1.5rem; font-weight: bold; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        button:disabled { background: #475569; cursor: not-allowed; }
+        #loading { display: none; color: var(--accent); margin-top: 1.5rem; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 style="color: var(--accent); margin-top:0;">Material Studio</h1>
-        <p style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 2rem;">PDF/ZIPを投入して透過PNGへ変換<br>ZIP内のフォルダ構造も完全に維持します</p>
+        <h1 style="color: var(--accent); margin: 0 0 0.5rem 0;">Material Studio</h1>
+        <p style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 1.5rem;">
+            PDF/ZIPを最大20ファイルまで一括変換<br>
+            フォルダ構造を維持したZIP、または単一PNGを出力
+        </p>
         
         <form id="convert-form" method="POST" enctype="multipart/form-data">
             <div class="drop-zone" id="drop-zone">
-                <p id="drop-text" style="margin:0;">PDF または ZIP をドロップ</p>
+                <p id="drop-text" style="margin:0; font-size: 0.9rem;">PDF または ZIP をここにドロップ</p>
                 <input type="file" name="file" id="file-input" accept=".pdf,.zip" multiple style="display:none">
             </div>
 
             <div class="option-group">
-                <label>解像度（DPI）</label>
+                <label>書き出し画質</label>
                 <select name="dpi" id="dpi">
-                    <option value="150" selected>150 DPI (標準)</option>
+                    <option value="150" selected>150 DPI (YouTube標準)</option>
                     <option value="300">300 DPI (高品質4K)</option>
                     <option value="72">72 DPI (軽量)</option>
                 </select>
-                
                 <label class="check-row">
-                    <input type="checkbox" name="transparent" checked id="trans-check">
-                    <span style="color: white; font-size: 0.9rem;">背景を透明にする</span>
+                    <input type="checkbox" name="transparent" checked> <span>背景を透明にする</span>
                 </label>
             </div>
             
-            <button type="submit" id="submit-btn">変換を開始</button>
+            <button type="submit" id="submit-btn">変換してダウンロード</button>
         </form>
-        <div id="loading">🚀 サーバーで画像を生成中...</div>
+        <div id="loading">🚀 変換中...（最大20ファイル処理中）</div>
     </div>
 
     <script>
@@ -67,28 +67,37 @@
         const btn = document.getElementById('submit-btn');
         const loading = document.getElementById('loading');
 
-        // ドラッグ＆ドロップ制御
+        function handleFiles(files) {
+            const fileList = Array.from(files);
+            // 修正：制限を 20 に変更
+            if (fileList.length > 20) {
+                alert("一度に変換できるのは20ファイルまでです。");
+                fileInput.value = "";
+                return;
+            }
+            const invalid = fileList.some(f => !f.name.toLowerCase().endsWith('.pdf') && !f.name.toLowerCase().endsWith('.zip'));
+            if (invalid) {
+                alert("PDFまたはZIPファイルのみ選択してください。");
+                fileInput.value = "";
+                return;
+            }
+            dropText.innerText = `${fileList.length} 件のファイルを準備完了`;
+            dropText.style.color = "#38bdf8";
+        }
+
         ['dragenter', 'dragover'].forEach(n => dropZone.addEventListener(n, e => { e.preventDefault(); dropZone.classList.add('drag-over'); }));
         ['dragleave', 'drop'].forEach(n => dropZone.addEventListener(n, e => { e.preventDefault(); dropZone.classList.remove('drag-over'); }));
         
         dropZone.addEventListener('drop', e => {
-            const files = Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith('.pdf') || f.name.toLowerCase().endsWith('.zip'));
-            if(files.length > 0) {
-                fileInput.files = e.dataTransfer.files;
-                dropText.innerText = `${files.length}件のファイルを準備完了`;
-                dropText.style.color = "#38bdf8";
-            }
+            fileInput.files = e.dataTransfer.files;
+            handleFiles(fileInput.files);
         });
 
         dropZone.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', () => {
-            if(fileInput.files.length > 0) dropText.innerText = `${fileInput.files.length}件をセット済み`;
-        });
+        fileInput.addEventListener('change', () => handleFiles(fileInput.files));
 
-        // クッキー監視によるダウンロード検知
         document.getElementById('convert-form').onsubmit = function() {
-            if(fileInput.files.length === 0) { alert("ファイルを選択してください"); return false; }
-            
+            if(fileInput.files.length === 0) return false;
             document.cookie = "download_started=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
             btn.disabled = true;
             loading.style.display = 'block';
@@ -96,11 +105,11 @@
             const timer = setInterval(() => {
                 if (document.cookie.includes('download_started')) {
                     clearInterval(timer);
-                    loading.innerText = "✅ 完了しました";
+                    loading.innerText = "✅ 完了しました！";
                     setTimeout(() => {
                         loading.style.display = 'none';
                         btn.disabled = false;
-                        loading.innerText = "🚀 サーバーで画像を生成中...";
+                        loading.innerText = "🚀 変換中...（最大20ファイル処理中）";
                     }, 3000);
                 }
             }, 500);
