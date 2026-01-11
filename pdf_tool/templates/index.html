@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-      <!-- Google tag (gtag.js) -->
+       <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -12,150 +12,184 @@
 </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-　　<meta property="og:title" content="Video Material Studio | PDFを動画素材に一括変換">
-　　<meta property="og:description" content="動画編集者のためのPDF変換ツール。背景透過・高画質PNG出力に対応。">
-　　<meta property="og:image" content="あなたのサイトのスクリーンショットURL">
-　　<meta name="twitter:card" content="summary_large_image">
     <title>Video Material Studio | PDF to PNG</title>
     <style>
         :root {
-            --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc;
+            --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; --error: #ef4444;
         }
         body {
             background-color: var(--bg); color: var(--text);
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-family: 'Inter', system-ui, sans-serif;
             display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0;
         }
         .container {
-            background: var(--card); padding: 2.5rem; border-radius: 1.5rem;
+            background: var(--card); padding: 2rem; border-radius: 1.5rem;
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
-            width: 100%; max-width: 400px; text-align: center;
+            width: 100%; max-width: 420px; text-align: center;
         }
-        h1 { font-size: 1.6rem; color: var(--accent); margin-bottom: 0.5rem; letter-spacing: -0.025em; }
-        .description { font-size: 0.85rem; opacity: 0.7; margin-bottom: 2rem; line-height: 1.6; }
+        h1 { font-size: 1.5rem; color: var(--accent); margin-bottom: 0.5rem; }
+        .description { font-size: 0.8rem; opacity: 0.6; margin-bottom: 1.5rem; line-height: 1.5; }
         
-        .upload-zone {
-            border: 2px dashed #475569; padding: 2rem; border-radius: 1rem; margin-bottom: 1.5rem;
-            transition: all 0.3s ease; background: rgba(255,255,255,0.02);
+        /* ドラッグ＆ドロップエリアのデザイン */
+        .drop-zone {
+            border: 2px dashed #475569; padding: 2.5rem 1rem; border-radius: 1rem; 
+            margin-bottom: 1.5rem; cursor: pointer; transition: all 0.3s;
+            background: rgba(255,255,255,0.02); position: relative;
         }
-        .upload-zone:hover { border-color: var(--accent); background: rgba(56, 189, 248, 0.05); }
-        input[type="file"] { width: 100%; font-size: 0.85rem; cursor: pointer; }
+        .drop-zone.drag-over { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+        .drop-zone p { pointer-events: none; margin: 0; font-size: 0.9rem; font-weight: 500; }
+        .file-info { margin-top: 10px; font-size: 0.8rem; color: var(--accent); font-weight: bold; display: none; }
+        
+        input[type="file"] { display: none; } /* 本物のインプットは隠す */
 
         .option-group {
             background: rgba(0,0,0,0.2); padding: 1.2rem; border-radius: 0.75rem;
             margin-bottom: 1.5rem; text-align: left;
         }
-        label { display: block; font-size: 0.75rem; font-weight: bold; margin-bottom: 0.6rem; color: var(--accent); }
-        
+        label { display: block; font-size: 0.75rem; font-weight: bold; margin-bottom: 0.5rem; color: #94a3b8; }
         select {
-            width: 100%; padding: 0.75rem; background: #334155; color: white;
-            border: 1px solid #475569; border-radius: 0.5rem; margin-bottom: 1.2rem;
-            font-size: 0.9rem; outline: none;
+            width: 100%; padding: 0.7rem; background: #334155; color: white;
+            border: 1px solid #475569; border-radius: 0.5rem; margin-bottom: 1rem;
         }
+        .checkbox-container { display: flex; align-items: center; cursor: pointer; gap: 0.5rem; font-size: 0.85rem; }
         
-        .checkbox-container { display: flex; align-items: center; cursor: pointer; gap: 0.75rem; }
-        .checkbox-container input { width: 1.2rem; height: 1.2rem; cursor: pointer; accent-color: var(--accent); }
-        .checkbox-text { font-size: 0.9rem; font-weight: 500; }
-
         button {
             width: 100%; padding: 1rem; background: var(--accent); color: var(--bg);
-            border: none; border-radius: 0.75rem; font-weight: 800; font-size: 1rem;
-            cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none; border-radius: 0.75rem; font-weight: bold; font-size: 1rem;
+            cursor: pointer; transition: all 0.2s;
         }
-        button:hover { background: #7dd3fc; transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(56, 189, 248, 0.3); }
-        button:disabled { background: #475569; cursor: not-allowed; transform: none; box-shadow: none; }
+        button:hover { background: #7dd3fc; transform: translateY(-2px); }
+        button:disabled { background: #475569; cursor: not-allowed; transform: none; }
         
-        #loading { 
-            display: none; margin-top: 1.5rem; font-size: 0.85rem; 
-            color: var(--accent); font-weight: 600;
-            padding: 1rem; border-radius: 0.5rem; background: rgba(56, 189, 248, 0.1);
-        }
+        #loading { display: none; margin-top: 1.5rem; font-size: 0.85rem; color: var(--accent); font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Video Material Studio</h1>
-        <p class="description">動画編集を効率化。PDFを背景透過PNGへ。<br>サーバーにデータを残さない安全設計。</p>
+        <p class="description">動画素材用PDF変換。背景透過・4K対応。<br>PDF以外のファイル・20MB以上はガードされます。</p>
         
         <form id="convert-form" method="POST" enctype="multipart/form-data">
-            <div class="upload-zone">
-                <input type="file" name="file" accept=".pdf" required>
+            <div class="drop-zone" id="drop-zone">
+                <p id="drop-text">ここにPDFをドラッグ ＆ ドロップ<br><span style="font-size: 0.7rem; opacity: 0.7;">またはクリックしてファイルを選択</span></p>
+                <div id="file-info" class="file-info"></div>
+                <input type="file" name="file" id="file-input" accept=".pdf">
             </div>
             
             <div class="option-group">
-                <label for="dpi">書き出し解像度</label>
+                <label>書き出し画質</label>
                 <select name="dpi" id="dpi">
-                    <option value="72">72 DPI (Webプレビュー / 軽量)</option>
-                    <option value="150" selected>150 DPI (標準 / YouTube 1080p用)</option>
-                    <option value="300">300 DPI (高品質 / 4K動画用)</option>
+                    <option value="72">72 DPI (軽量・プレビュー用)</option>
+                    <option value="150" selected>150 DPI (標準・YouTube用)</option>
+                    <option value="300">300 DPI (高品質・4K動画用)</option>
                 </select>
                 
                 <label class="checkbox-container">
                     <input type="checkbox" name="transparent" id="transparent">
-                    <span class="checkbox-text">背景を透明にする (RGBA)</span>
+                    <span>背景を透明にする (RGBA)</span>
                 </label>
             </div>
             
-            <button type="submit" id="submit-btn">素材を生成してダウンロード</button>
+            <button type="submit" id="submit-btn">変換してダウンロード</button>
         </form>
         
-        <div id="loading">🚀 変換中... サーバーで画像を生成しています。</div>
+        <div id="loading">🚀 処理中...</div>
     </div>
 
     <script>
-        const dpiSelect = document.getElementById('dpi');
-        const transCheck = document.getElementById('transparent');
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const fileInfo = document.getElementById('file-info');
+        const dropText = document.getElementById('drop-text');
         const btn = document.getElementById('submit-btn');
         const loading = document.getElementById('loading');
 
-        // 1. 設定の復元 (LocalStorage)
-        window.onload = () => {
-            if(localStorage.getItem('dpi')) dpiSelect.value = localStorage.getItem('dpi');
-            if(localStorage.getItem('trans') === 'true') transCheck.checked = true;
-        };
+        // 1. ドラッグ＆ドロップのビジュアル制御
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(name => {
+            dropZone.addEventListener(name, e => { e.preventDefault(); e.stopPropagation(); });
+        });
+        ['dragenter', 'dragover'].forEach(name => {
+            dropZone.addEventListener(name, () => dropZone.classList.add('drag-over'));
+        });
+        ['dragleave', 'drop'].forEach(name => {
+            dropZone.addEventListener(name, () => dropZone.classList.remove('drag-over'));
+        });
 
-        // 2. クッキー読み取り関数
+        // 2. ファイルのバリデーション関数
+        function validateFile(file) {
+            if (!file) return false;
+
+            // フォルダチェック
+            if (!file.type && file.size % 4096 === 0) {
+                alert("エラー: フォルダはアップロードできません。");
+                return false;
+            }
+            // 拡張子チェック
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                alert("エラー: PDFファイルのみ対応しています。");
+                return false;
+            }
+            // サイズチェック (20MB)
+            if (file.size > 20 * 1024 * 1024) {
+                alert("エラー: ファイルが重すぎます (20MBまで)。");
+                return false;
+            }
+            return true;
+        }
+
+        // ファイルが選択された時の処理
+        function handleFile(file) {
+            if (validateFile(file)) {
+                fileInfo.innerText = `選択中: ${file.name}`;
+                fileInfo.style.display = 'block';
+                dropText.style.display = 'none';
+            } else {
+                fileInput.value = ""; 
+                fileInfo.style.display = 'none';
+                dropText.style.display = 'block';
+            }
+        }
+
+        dropZone.addEventListener('drop', e => {
+            const file = e.dataTransfer.files[0];
+            fileInput.files = e.dataTransfer.files; // inputにセット
+            handleFile(file);
+        });
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+
+        // 3. クッキー監視＆フォーム送信
         function getCookie(name) {
             const value = `; ${document.cookie}`;
             const parts = value.split(`; ${name}=`);
             if (parts.length === 2) return parts.pop().split(';').shift();
-            return null;
         }
 
-        // 3. フォーム送信時の処理
         document.getElementById('convert-form').onsubmit = function() {
-            // 前回のクッキーを削除
-            document.cookie = "download_started=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            if (!fileInput.files[0]) {
+                alert("PDFファイルを選択してください。");
+                return false;
+            }
 
-            // 設定を保存
-            localStorage.setItem('dpi', dpiSelect.value);
-            localStorage.setItem('trans', transCheck.checked);
-            
-            // UIの状態を変更
+            document.cookie = "download_started=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
             btn.disabled = true;
             loading.style.display = 'block';
             loading.innerText = "🚀 変換中... サーバーで画像を生成しています。";
 
-            // 4. ダウンロード完了（サーバーからのクッキー受信）を監視
             const checkDownload = setInterval(() => {
                 if (getCookie('download_started') === 'true') {
-                    clearInterval(checkDownload); // 監視終了
-                    
+                    clearInterval(checkDownload);
                     loading.innerText = "✅ 完了！ダウンロードを開始します。";
-                    
-                    // 3秒後にUIをリセット
                     setTimeout(() => {
                         btn.disabled = false;
                         loading.style.display = 'none';
-                        // 使用済みクッキーを削除
                         document.cookie = "download_started=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
                     }, 3000);
                 }
-            }, 500); // 0.5秒ごとにチェック
-
+            }, 500);
             return true;
         };
     </script>
 </body>
 </html>
-
