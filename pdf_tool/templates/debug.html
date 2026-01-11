@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Server Health</title>
+    <style>
+        body { font-family: sans-serif; background: #eee; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .bar { background: #ddd; width: 100%; height: 20px; border-radius: 10px; overflow: hidden; }
+        .fill { background: #38bdf8; height: 100%; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Server Health Check</h1>
+        <p>Memory Usage: {{ memory.percent }}%</p>
+        <div class="bar"><div class="fill" style="width: {{ memory.percent }}%"></div></div>
+        <p>Free Memory: {{ (memory.available / 1024 / 1024) | round(1) }} MB</p>
+        <hr>
+        <h3>Temporary Files ({{ files|length }})</h3>
+        <ul>
+            {% for file in files %}
+            <li>{{ file }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>
