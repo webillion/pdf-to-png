@@ -1,5 +1,7 @@
 flask
 gunicorn
 pdf2image
+psutil
 pillow
+
 
