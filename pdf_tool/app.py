@@ -4,7 +4,7 @@ import time
 import zipfile
 import io
 import psutil
-from flask import Flask, request, render_template, send_file, after_this_request
+from flask import Flask, request, render_template, send_file, after_this_request, make_response
 from pdf2image import convert_from_path
 from PIL import Image
 
@@ -16,13 +16,16 @@ UPLOAD_FOLDER = 'temp_storage'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def cleanup_old_files():
-    """10分以上経過した古いPDFファイルを削除（サーバー容量保護）"""
+    """10分以上経過した古いPDFファイルを削除"""
     now = time.time()
     for filename in os.listdir(UPLOAD_FOLDER):
         path = os.path.join(UPLOAD_FOLDER, filename)
-        if os.path.getmtime(path) < now - 600:
-            if os.path.isfile(path):
-                os.remove(path)
+        try:
+            if os.path.getmtime(path) < now - 600:
+                if os.path.isfile(path):
+                    os.remove(path)
+        except Exception as e:
+            print(f"Cleanup error: {e}")
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -39,7 +42,7 @@ def index():
         selected_dpi = int(request.form.get('dpi', 150))
         is_transparent = 'transparent' in request.form
         
-        # 一時的なPDF保存
+        # 一時的なPDF保存用のID発行
         unique_id = str(uuid.uuid4())
         pdf_path = os.path.join(UPLOAD_FOLDER, f"{unique_id}.pdf")
         file.save(pdf_path)
@@ -50,18 +53,18 @@ def index():
             pages = convert_from_path(pdf_path, dpi=selected_dpi)
             pages = pages[:max_p]
 
-            # ZIPファイルをメモリ上で作成
+            # ZIPファイルをメモリ内で作成
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                 for i, page in enumerate(pages):
                     
                     if is_transparent:
-                        # 背景透過処理
+                        # 背景透過処理（RGBA変換）
                         page = page.convert("RGBA")
                         datas = page.getdata()
                         new_data = []
                         for item in datas:
-                            # 白に近い色（240以上）を透明に置換
+                            # 白に近い色を透明に置換
                             if item[0] > 240 and item[1] > 240 and item[2] > 240:
                                 new_data.append((255, 255, 255, 0))
                             else:
@@ -73,11 +76,21 @@ def index():
                     # メモリ内に画像を書き出し
                     img_io = io.BytesIO()
                     page.save(img_io, format='PNG', optimize=True)
-                    # 動画編集ソフトで扱いやすい「001」形式の連番
-                    filename = f"video_material_{i+1:03d}.png"
+                    filename = f"material_{i+1:03d}.png"
                     zip_file.writestr(filename, img_io.getvalue())
 
             zip_buffer.seek(0)
+
+            # --- ファイル送信のレスポンス作成 ---
+            response = make_response(send_file(
+                zip_buffer,
+                mimetype='application/zip',
+                as_attachment=True,
+                download_name=f'converted_material_{selected_dpi}dpi.zip'
+            ))
+            
+            # クッキーをセット（JavaScript側で「完了」を検知するための合図）
+            response.set_cookie('download_started', 'true', path='/')
 
             # 送信後に元のPDFを物理削除
             @after_this_request
@@ -89,12 +102,7 @@ def index():
                     app.logger.error(f"Error removing file: {e}")
                 return response
 
-            return send_file(
-                zip_buffer,
-                mimetype='application/zip',
-                as_attachment=True,
-                download_name=f'converted_material_{selected_dpi}dpi.zip'
-            )
+            return response
 
         except Exception as e:
             return f"変換エラー: {str(e)}。ファイルが大きすぎるか、メモリ制限に達した可能性があります。", 500
@@ -103,10 +111,13 @@ def index():
 
 @app.route('/debug-files')
 def health_check():
-    """サーバーの負荷状況を監視するページ"""
+    """サーバーの負荷状況を監視するデバッグページ"""
     memory = psutil.virtual_memory()
     files = os.listdir(UPLOAD_FOLDER)
-    return render_template('debug.html', memory=memory, files=files)
+    status = "OK" if memory.percent < 80 else "HIGH LOAD"
+    return render_template('debug.html', memory=memory, files=files, status=status)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    # 外部からのアクセスを許可
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
