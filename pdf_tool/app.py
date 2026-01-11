@@ -1,106 +1,112 @@
 import os
-import time
 import uuid
-from flask import Flask, render_template, request
+import time
+import zipfile
+import io
+import psutil
+from flask import Flask, request, render_template, send_file, after_this_request
 from pdf2image import convert_from_path
+from PIL import Image
 
 app = Flask(__name__)
 
-# --- 設定 ---
-UPLOAD_FOLDER = 'static'
-# アップロードサイズを16MBに制限（サーバー保護）
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 
-
-# 保存先フォルダがなければ作成
+# 最大アップロードサイズ: 20MB
+app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024
+UPLOAD_FOLDER = 'temp_storage'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def cleanup_old_files():
-    """10分以上経過したファイルを削除するお掃除関数"""
+    """10分以上経過した古いPDFファイルを削除（サーバー容量保護）"""
     now = time.time()
-    if not os.path.exists(UPLOAD_FOLDER):
-        return
-    
     for filename in os.listdir(UPLOAD_FOLDER):
-        # 変換したPNGと一時PDFを対象にする
-        if filename.endswith(".png") or filename.endswith(".pdf"):
-            path = os.path.join(UPLOAD_FOLDER, filename)
-            # 600秒（10分）以上前のファイルを削除
-            if os.path.getmtime(path) < now - 600:
-                try:
-                    os.remove(path)
-                except Exception as e:
-                    print(f"Error deleting {filename}: {e}")
-
-# --- デバッグ用ページ（監視機能） ---
-@app.route('/debug-files')
-def list_files():
-    """現在のサーバー内のファイル状況を表示する"""
-    files = []
-    total_size = 0
-    now = time.time()
-    
-    if os.path.exists(UPLOAD_FOLDER):
-        for filename in os.listdir(UPLOAD_FOLDER):
-            path = os.path.join(UPLOAD_FOLDER, filename)
+        path = os.path.join(UPLOAD_FOLDER, filename)
+        if os.path.getmtime(path) < now - 600:
             if os.path.isfile(path):
-                size = os.path.getsize(path) / 1024  # KB
-                mtime = os.path.getmtime(path)
-                age = int((now - mtime) / 60)  # 分
-                files.append({
-                    'name': filename,
-                    'size': f"{size:.1f} KB",
-                    'age': f"{age} min ago"
-                })
-                total_size += size
+                os.remove(path)
 
-    # シンプルなHTMLで結果を表示
-    output = f"<h1>Server Storage Status</h1>"
-    output += f"<p><strong>Total Files:</strong> {len(files)}</p>"
-    output += f"<p><strong>Total Size:</strong> {total_size/1024:.2f} MB</p>"
-    output += "<table border='1' style='border-collapse: collapse; width: 100%;'>"
-    output += "<tr><th>File Name</th><th>Size</th><th>Created</th></tr>"
-    for f in files:
-        output += f"<tr><td>{f['name']}</td><td>{f['size']}</td><td>{f['age']}</td></tr>"
-    output += "</table>"
-    output += "<br><a href='/'>Back to Home</a>"
-    
-    return output
-
-# --- メインページ（変換機能） ---
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    # アクセスがあるたびにお掃除を実行
     cleanup_old_files()
-    
-    images = []
     if request.method == 'POST':
-        pdf_file = request.files.get('file')
+        if 'file' not in request.files:
+            return "ファイルがありません", 400
         
-        if pdf_file and pdf_file.filename:
-            # 1. 重複しない名前を作成
-            unique_id = str(uuid.uuid4())
-            pdf_path = os.path.join(UPLOAD_FOLDER, f"{unique_id}.pdf")
-            pdf_file.save(pdf_path)
+        file = request.files['file']
+        if file.filename == '':
+            return "ファイルが選択されていません", 400
 
-            try:
-                # 2. PDFを画像に変換 (dpi=100でメモリ節約)
-                pages = convert_from_path(pdf_path, dpi=100)
-                
-                # 3. 画像を保存
+        # ユーザー設定の取得
+        selected_dpi = int(request.form.get('dpi', 150))
+        is_transparent = 'transparent' in request.form
+        
+        # 一時的なPDF保存
+        unique_id = str(uuid.uuid4())
+        pdf_path = os.path.join(UPLOAD_FOLDER, f"{unique_id}.pdf")
+        file.save(pdf_path)
+
+        try:
+            # サーバー負荷対策：高画質(300DPI)なら10ページ、それ以外なら50ページまでに制限
+            max_p = 10 if selected_dpi > 200 else 50
+            pages = convert_from_path(pdf_path, dpi=selected_dpi)
+            pages = pages[:max_p]
+
+            # ZIPファイルをメモリ上で作成
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                 for i, page in enumerate(pages):
-                    img_name = f"{unique_id}_{i}.png"
-                    img_path = os.path.join(UPLOAD_FOLDER, img_name)
-                    page.save(img_path, "PNG")
-                    images.append(img_name)
-                
-                # 4. PDFはその場で削除
-                if os.path.exists(pdf_path):
-                    os.remove(pdf_path)
                     
-            except Exception as e:
-                return f"変換エラー: {e}"
+                    if is_transparent:
+                        # 背景透過処理
+                        page = page.convert("RGBA")
+                        datas = page.getdata()
+                        new_data = []
+                        for item in datas:
+                            # 白に近い色（240以上）を透明に置換
+                            if item[0] > 240 and item[1] > 240 and item[2] > 240:
+                                new_data.append((255, 255, 255, 0))
+                            else:
+                                new_data.append(item)
+                        page.putdata(new_data)
+                    else:
+                        page = page.convert("RGB")
 
-    return render_template('index.html', images=images)
+                    # メモリ内に画像を書き出し
+                    img_io = io.BytesIO()
+                    page.save(img_io, format='PNG', optimize=True)
+                    # 動画編集ソフトで扱いやすい「001」形式の連番
+                    filename = f"video_material_{i+1:03d}.png"
+                    zip_file.writestr(filename, img_io.getvalue())
+
+            zip_buffer.seek(0)
+
+            # 送信後に元のPDFを物理削除
+            @after_this_request
+            def remove_file(response):
+                try:
+                    if os.path.exists(pdf_path):
+                        os.remove(pdf_path)
+                except Exception as e:
+                    app.logger.error(f"Error removing file: {e}")
+                return response
+
+            return send_file(
+                zip_buffer,
+                mimetype='application/zip',
+                as_attachment=True,
+                download_name=f'converted_material_{selected_dpi}dpi.zip'
+            )
+
+        except Exception as e:
+            return f"変換エラー: {str(e)}。ファイルが大きすぎるか、メモリ制限に達した可能性があります。", 500
+
+    return render_template('index.html')
+
+@app.route('/debug-files')
+def health_check():
+    """サーバーの負荷状況を監視するページ"""
+    memory = psutil.virtual_memory()
+    files = os.listdir(UPLOAD_FOLDER)
+    return render_template('debug.html', memory=memory, files=files)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000)
