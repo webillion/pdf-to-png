@@ -11,15 +11,15 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 def process_pdf_to_zip(pdf_path, dpi, is_transparent, zip_file, base_filename):
     """PDFを解析し、1枚ずつZIPに書き込んでメモリから即消去する"""
     try:
-        # thread_count=1 で並列処理によるメモリ爆発を防止
+        # thread_count=1 でメモリ爆発を防止
         pages = convert_from_path(pdf_path, dpi=dpi, thread_count=1)
         target_pages = pages[:15]
         
         for i, page in enumerate(target_pages):
             if is_transparent:
                 page = page.convert("RGBA")
-                # 透過処理（メモリ効率のためインプレースに近い形で処理）
                 datas = page.getdata()
+                # 高速透過処理
                 new_data = [(255, 255, 255, 0) if d[0]>240 and d[1]>240 and d[2]>240 else d for d in datas]
                 page.putdata(new_data)
             else:
@@ -30,13 +30,13 @@ def process_pdf_to_zip(pdf_path, dpi, is_transparent, zip_file, base_filename):
             page.save(img_io, format='PNG', optimize=False)
             zip_file.writestr(f"{base_filename}_{i+1:03d}.png", img_io.getvalue())
             
-            # 使用済みオブジェクトの明示的削除
+            # 使用済みオブジェクトの明示的削除とメモリ解放
             img_io.close()
             page.close()
             del page
             
         del pages
-        gc.collect() # 1ファイルごとにゴミ拾いを実行
+        gc.collect() # 1ファイルごとにゴミ拾い
         return True
     except Exception as e:
         print(f"Error processing {base_filename}: {e}")
@@ -63,31 +63,12 @@ def convert():
             total_pdf_count = 0
             
             for file in files:
+                if total_pdf_count >= 20: break
                 filename_low = file.filename.lower()
                 
-                # ZIPファイル内の処理
-                if filename_low.endswith('.zip'):
-                    file_content = file.read()
-                    with zipfile.ZipFile(io.BytesIO(file_content), 'r') as ref_zip:
-                        pdf_infos = [z for z in ref_zip.infolist() if not z.is_dir() and z.filename.lower().endswith('.pdf')]
-                        for z_info in pdf_infos:
-                            if total_pdf_count >= 20: break
-                            total_pdf_count += 1
-                            
-                            with ref_zip.open(z_info) as z_file:
-                                tmp_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}.pdf")
-                                with open(tmp_path, "wb") as f: f.write(z_file.read())
-                                
-                                base_name = os.path.splitext(z_info.filename)[0]
-                                process_pdf_to_zip(tmp_path, selected_dpi, is_transparent, master_zip, base_name)
-                                
-                                if os.path.exists(tmp_path): os.remove(tmp_path)
-
                 # 単一PDFの処理
-                elif filename_low.endswith('.pdf'):
-                    if total_pdf_count >= 20: break
+                if filename_low.endswith('.pdf'):
                     total_pdf_count += 1
-                    
                     tmp_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}.pdf")
                     file.save(tmp_path)
                     
@@ -95,6 +76,21 @@ def convert():
                     process_pdf_to_zip(tmp_path, selected_dpi, is_transparent, master_zip, base_name)
                     
                     if os.path.exists(tmp_path): os.remove(tmp_path)
+
+                # ZIPファイル（中身がPDF）の処理
+                elif filename_low.endswith('.zip'):
+                    file_content = file.read()
+                    with zipfile.ZipFile(io.BytesIO(file_content), 'r') as ref_zip:
+                        pdf_infos = [z for z in ref_zip.infolist() if not z.is_dir() and z.filename.lower().endswith('.pdf')]
+                        for z_info in pdf_infos:
+                            if total_pdf_count >= 20: break
+                            total_pdf_count += 1
+                            with ref_zip.open(z_info) as z_file:
+                                tmp_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}.pdf")
+                                with open(tmp_path, "wb") as f: f.write(z_file.read())
+                                base_name = os.path.splitext(z_info.filename)[0]
+                                process_pdf_to_zip(tmp_path, selected_dpi, is_transparent, master_zip, base_name)
+                                if os.path.exists(tmp_path): os.remove(tmp_path)
 
         zip_buffer.seek(0)
         return send_file(
@@ -105,7 +101,7 @@ def convert():
         )
 
     except Exception as e:
-        return jsonify({"error": f"サーバー負荷エラー: 画質を下げるかファイル数を減らしてください。({str(e)})"}), 500
+        return jsonify({"error": f"サーバー負荷エラー: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
