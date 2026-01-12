@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-             <!-- Google tag (gtag.js) -->
+   <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -11,15 +11,23 @@
   gtag('config', 'G-MTB190WE2E');
 </script>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Material Studio Pro</title>
     <style>
-        :root { --bg: #0f172a; --accent: #38bdf8; --text: #f8fafc; }
-        body { background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .container { background: #1e293b; padding: 2rem; border-radius: 1rem; width: 400px; text-align: center; }
-        .input-field { background: #334155; border: 1px solid #475569; color: white; padding: 0.8rem; border-radius: 0.5rem; width: 100%; box-sizing: border-box; margin-bottom: 1rem; }
-        .drop-zone { border: 2px dashed #475569; padding: 2rem; border-radius: 1rem; cursor: pointer; margin-bottom: 1rem; }
-        button { width: 100%; padding: 1rem; border-radius: 0.5rem; border: none; background: var(--accent); color: #0f172a; font-weight: bold; cursor: pointer; }
-        #error-box { display: none; color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; }
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; --danger: #ef4444; }
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .container { background: var(--card); padding: 2rem; border-radius: 1.5rem; width: 100%; max-width: 450px; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+        h1 { color: var(--accent); margin: 0 0 1rem 0; text-align: center; }
+        .input-field { background: #334155; border: 1px solid #475569; color: white; padding: 0.8rem; border-radius: 0.6rem; width: 100%; box-sizing: border-box; margin-bottom: 1rem; outline: none; }
+        .drop-zone { border: 2px dashed #475569; padding: 2rem; border-radius: 1rem; text-align: center; cursor: pointer; transition: 0.3s; background: rgba(255,255,255,0.02); }
+        .drop-zone.drag-over { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+        #file-list { margin-top: 1rem; text-align: left; font-size: 0.85rem; max-height: 150px; overflow-y: auto; background: #0f172a; border-radius: 0.5rem; padding: 0.5rem; display: none; }
+        .file-item { padding: 4px 8px; border-bottom: 1px solid #334155; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        button { width: 100%; padding: 1rem; border-radius: 0.6rem; border: none; font-size: 1rem; background: var(--accent); color: var(--bg); font-weight: bold; cursor: pointer; margin-top: 1rem; }
+        button:disabled { background: #475569; cursor: not-allowed; }
+        #loading { display: none; color: var(--accent); margin-top: 1rem; text-align: center; font-weight: bold; animation: blink 1.5s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        #error-box { display: none; color: var(--danger); background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 0.6rem; margin-bottom: 1rem; font-size: 0.85rem; }
     </style>
 </head>
 <body>
@@ -28,49 +36,60 @@
         <div id="error-box"></div>
         
         <form id="convert-form">
-            <input type="password" id="password" class="input-field" placeholder="パスワード（Pro・開発者用）">
+            <input type="password" id="password" class="input-field" placeholder="パスワード（Pro / 開発者）">
             
             <div class="drop-zone" id="drop-zone">
                 <p id="drop-text">PDFをドロップ (最大3枚 / Pro無制限)</p>
                 <input type="file" id="file-input" accept=".pdf" multiple style="display:none">
+                <div id="file-list"></div>
             </div>
 
-            <div style="text-align:left; margin-bottom:1rem;">
-                <select id="dpi" class="input-field">
-                    <option value="150">150 DPI</option>
-                    <option value="300" selected>300 DPI</option>
+            <div style="margin-top:1rem; font-size:0.9rem;">
+                <select id="dpi" class="input-field" style="margin-bottom:0.5rem;">
+                    <option value="150">150 DPI (標準)</option>
+                    <option value="300" selected>300 DPI (最高品質)</option>
                 </select>
-                <label><input type="checkbox" id="transparent" checked> 背景を透明にする</label>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="checkbox" id="transparent" checked> 背景を透明にする
+                </label>
             </div>
             
-            <button type="submit" id="submit-btn">変換を開始</button>
+            <button type="submit" id="submit-btn">素材を生成して保存</button>
         </form>
-        <p id="loading" style="display:none; color:var(--accent);">⌛ 処理中...（数分かかる場合があります）</p>
+        <div id="loading">⌛ 1ページずつ丁寧に変換中...</div>
     </div>
 
     <script>
-        const devPass = "dev_admin_key";
-        const userPass = "user_pro_key";
+        const devKey = "dev_admin_key";
+        const userKey = "user_pro_key";
         const fileInput = document.getElementById('file-input');
         const dropZone = document.getElementById('drop-zone');
+        const fileList = document.getElementById('file-list');
 
-        // パスワードが正しいか判定
-        function isUnlocked() {
-            const val = document.getElementById('password').value;
-            return val === devPass || val === userPass;
+        function updateFileList(files) {
+            const isPro = document.getElementById('password').value === devKey || document.getElementById('password').value === userKey;
+            if (!isPro && files.length > 3) {
+                alert("無料版は1日3ファイルまでです。");
+                fileInput.value = "";
+                fileList.style.display = "none";
+                return;
+            }
+            fileList.innerHTML = "";
+            fileList.style.display = "block";
+            Array.from(files).forEach(f => {
+                const div = document.createElement('div');
+                div.className = "file-item";
+                div.innerText = `📄 ${f.name}`;
+                fileList.appendChild(div);
+            });
+            document.getElementById('drop-text').style.display = "none";
         }
 
-        ['dragover', 'drop'].forEach(n => dropZone.addEventListener(n, e => e.preventDefault()));
+        ['dragover', 'dragenter'].forEach(n => dropZone.addEventListener(n, e => { e.preventDefault(); dropZone.classList.add('drag-over'); }));
+        ['dragleave', 'drop'].forEach(n => dropZone.addEventListener(n, () => dropZone.classList.remove('drag-over')));
+        dropZone.addEventListener('drop', e => { e.preventDefault(); fileInput.files = e.dataTransfer.files; updateFileList(fileInput.files); });
         dropZone.addEventListener('click', () => fileInput.click());
-        
-        fileInput.addEventListener('change', () => {
-            if (!isUnlocked() && fileInput.files.length > 3) {
-                alert("無料版は一度に3枚までです。パスワードを入力してください。");
-                fileInput.value = "";
-            } else {
-                document.getElementById('drop-text').innerText = `${fileInput.files.length}枚選択中`;
-            }
-        });
+        fileInput.addEventListener('change', () => updateFileList(fileInput.files));
 
         document.getElementById('convert-form').onsubmit = async function(e) {
             e.preventDefault();
@@ -78,6 +97,7 @@
 
             document.getElementById('submit-btn').disabled = true;
             document.getElementById('loading').style.display = 'block';
+            document.getElementById('error-box').style.display = 'none';
 
             const formData = new FormData();
             for(let f of fileInput.files) formData.append('file', f);
@@ -88,17 +108,17 @@
             try {
                 const response = await fetch('/convert', { method: 'POST', body: formData });
                 if (!response.ok) {
-                    const data = await response.json();
-                    throw new Error(data.error);
+                    const res = await response.json();
+                    throw new Error(res.error);
                 }
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = "output.zip";
+                const a = document.createElement('a'); a.href = url; a.download = "materials.zip";
                 a.click();
             } catch (err) {
-                const errBox = document.getElementById('error-box');
-                errBox.innerText = `⚠️ ${err.message}`;
-                errBox.style.display = 'block';
+                const eb = document.getElementById('error-box');
+                eb.innerText = `⚠️ ${err.message}`;
+                eb.style.display = 'block';
             } finally {
                 document.getElementById('submit-btn').disabled = false;
                 document.getElementById('loading').style.display = 'none';
