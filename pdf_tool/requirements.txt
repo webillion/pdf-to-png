@@ -1,7 +1,5 @@
-flask
+Flask
 pdf2image
-psutil
-pillow
-gunicorn
+Pillow
 
 
