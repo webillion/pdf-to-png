@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-        <!-- Google tag (gtag.js) -->
+         <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -16,38 +16,32 @@
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; --danger: #ef4444; --success: #22c55e; }
         body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .container { background: var(--card); padding: 2rem; border-radius: 1.5rem; width: 100%; max-width: 420px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
-        h1 { font-size: 1.6rem; color: var(--accent); margin-bottom: 1rem; }
-        .guideline { font-size: 0.8rem; text-align: left; background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 0.8rem; margin-bottom: 1rem; border-left: 4px solid var(--accent); }
-        .drop-zone { border: 2px dashed #475569; padding: 2rem 1rem; border-radius: 1rem; cursor: pointer; transition: 0.3s; margin-bottom: 1rem; }
-        .drop-zone.drag-over { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+        .container { background: var(--card); padding: 2rem; border-radius: 1.5rem; width: 90%; max-width: 420px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+        h1 { color: var(--accent); margin-bottom: 1rem; font-size: 1.6rem; }
+        .badge { background: rgba(56, 189, 248, 0.1); color: var(--accent); padding: 0.5rem; border-radius: 0.5rem; font-size: 0.8rem; margin-bottom: 1.5rem; display: block; border: 1px solid var(--accent); }
         .input-field { background: #334155; border: 1px solid #475569; color: white; padding: 0.8rem; border-radius: 0.6rem; width: 100%; box-sizing: border-box; margin-bottom: 1rem; outline: none; }
         .input-field:focus { border-color: var(--accent); }
-        select, button { width: 100%; padding: 0.9rem; border-radius: 0.6rem; border: none; font-size: 1rem; }
-        select { background: #334155; color: white; margin-bottom: 1rem; }
-        button { background: var(--accent); color: var(--bg); font-weight: bold; cursor: pointer; }
+        .drop-zone { border: 2px dashed #475569; padding: 2.5rem 1rem; border-radius: 1rem; cursor: pointer; transition: 0.3s; margin-bottom: 1rem; }
+        .drop-zone.drag-over { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+        select, button { width: 100%; padding: 0.9rem; border-radius: 0.6rem; border: none; font-size: 1rem; margin-bottom: 1rem; }
+        select { background: #334155; color: white; cursor: pointer; }
+        button { background: var(--accent); color: var(--bg); font-weight: bold; cursor: pointer; transition: 0.2s; }
         button:disabled { background: #475569; opacity: 0.5; }
-        #error-message { display: none; color: var(--danger); background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 0.6rem; font-size: 0.85rem; margin-bottom: 1rem; text-align: left; }
-        .buy-link { display: none; margin-bottom: 1rem; color: var(--accent); font-weight: bold; text-decoration: none; border: 1px solid var(--accent); padding: 8px; border-radius: 8px; font-size: 0.9rem; }
-        #loading { display: none; margin-top: 1rem; color: var(--accent); }
+        #error-box { display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); color: var(--danger); padding: 1rem; border-radius: 0.6rem; margin-bottom: 1rem; font-size: 0.85rem; text-align: left; }
+        .buy-btn { display: none; background: #f43f5e; color: white; text-decoration: none; padding: 0.8rem; border-radius: 0.6rem; font-weight: bold; display: block; margin-bottom: 1.5rem; border: 2px solid white; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Material Studio</h1>
-        <div class="guideline">
-            <strong>💎 ユーザー特典</strong>
-            <ul style="margin:5px 0 0 15px; padding:0; opacity:0.8;">
-                <li>無料ユーザー：1日3回まで</li>
-                <li>パスワード保持者：<strong>無制限</strong></li>
-            </ul>
-        </div>
+        <div class="badge">🎁 一般利用：1日3回まで無料</div>
 
-        <div id="error-message"></div>
-        <a href="あなたの販売ページURL" id="buy-btn" class="buy-link">🎫 パスワードを購入する</a>
-        
+        <div id="error-box"></div>
+        <a href="https://booth.pm/ja/items/あなたのID" id="buy-link" class="buy-btn">🎫 パスワードを購入して無制限にする</a>
+
         <form id="convert-form">
-            <input type="password" id="password" class="input-field" placeholder="パスワード（お持ちの方）">
+            <input type="password" id="password" class="input-field" placeholder="パスワードを入力（お持ちの方）">
             
             <div class="drop-zone" id="drop-zone">
                 <p id="drop-text" style="pointer-events: none;">PDFをドロップ または クリック</p>
@@ -55,19 +49,19 @@
             </div>
 
             <div style="text-align:left; margin-bottom:1rem;">
-                <label style="font-size:0.7rem; color:#94a3b8;">画質</label>
+                <label style="font-size:0.75rem; color:#94a3b8;">画質</label>
                 <select id="dpi">
-                    <option value="150">150 DPI</option>
-                    <option value="300" selected>300 DPI</option>
+                    <option value="150">150 DPI (通常)</option>
+                    <option value="300" selected>300 DPI (最高画質)</option>
                 </select>
                 <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
-                    <input type="checkbox" id="transparent" checked> 背景を透明にする
+                    <input type="checkbox" id="transparent" checked style="width:18px; height:18px;"> 背景を透明にする
                 </label>
             </div>
             
-            <button type="submit" id="submit-btn">変換を開始する</button>
+            <button type="submit" id="submit-btn">素材を一括生成する</button>
         </form>
-        <div id="loading">⌛ 処理中...</div>
+        <div id="loading" style="display:none; color:var(--accent); font-weight:bold;">⌛ 変換中... 画面を閉じないでください</div>
     </div>
 
     <script>
@@ -75,30 +69,31 @@
         const fileInput = document.getElementById('file-input');
         const dropText = document.getElementById('drop-text');
         const btn = document.getElementById('submit-btn');
-        const errorBox = document.getElementById('error-message');
-        const buyBtn = document.getElementById('buy-btn');
+        const errorBox = document.getElementById('error-box');
+        const buyLink = document.getElementById('buy-link');
+        const loading = document.getElementById('loading');
 
-        // ドラッグ＆ドロップ
+        // ドラッグ＆ドロップ機能
         ['dragover', 'dragenter'].forEach(n => dropZone.addEventListener(n, e => { e.preventDefault(); dropZone.classList.add('drag-over'); }));
         ['dragleave', 'drop'].forEach(n => dropZone.addEventListener(n, () => dropZone.classList.remove('drag-over')));
         dropZone.addEventListener('drop', e => {
             e.preventDefault();
             fileInput.files = e.dataTransfer.files;
-            if(fileInput.files.length > 0) dropText.innerText = `${fileInput.files.length}件選択中`;
+            if(fileInput.files.length > 0) dropText.innerText = `${fileInput.files.length}件のPDFを選択中`;
         });
         dropZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', () => {
-            if(fileInput.files.length > 0) dropText.innerText = `${fileInput.files.length}件選択中`;
+            if(fileInput.files.length > 0) dropText.innerText = `${fileInput.files.length}件のPDFを選択中`;
         });
 
         document.getElementById('convert-form').onsubmit = async function(e) {
             e.preventDefault();
-            if(fileInput.files.length === 0) { alert("ファイルを選んでください"); return; }
+            if(fileInput.files.length === 0) return;
 
             btn.disabled = true;
-            document.getElementById('loading').style.display = 'block';
+            loading.style.display = 'block';
             errorBox.style.display = 'none';
-            buyBtn.style.display = 'none';
+            buyLink.style.display = 'none';
 
             const formData = new FormData();
             for(let f of fileInput.files) { formData.append('file', f); }
@@ -108,22 +103,29 @@
 
             try {
                 const response = await fetch('/convert', { method: 'POST', body: formData });
+                
                 if (!response.ok) {
                     const resData = await response.json();
-                    if (response.status === 403) buyBtn.style.display = 'inline-block';
+                    if (response.status === 403) buyLink.style.display = 'block';
                     throw new Error(resData.error);
                 }
+
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = "output.zip";
-                document.body.appendChild(a); a.click(); a.remove();
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "material_studio.zip";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
                 
-                document.getElementById('loading').innerText = "✅ 完了！";
-                setTimeout(() => { document.getElementById('loading').style.display = 'none'; btn.disabled = false; }, 3000);
+                loading.innerText = "✅ 完了しました！";
+                setTimeout(() => { loading.style.display = 'none'; btn.disabled = false; }, 3000);
+
             } catch (err) {
                 errorBox.innerText = `⚠️ ${err.message}`;
                 errorBox.style.display = 'block';
-                document.getElementById('loading').style.display = 'none';
+                loading.style.display = 'none';
                 btn.disabled = false;
             }
         };
