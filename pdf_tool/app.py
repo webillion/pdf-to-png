@@ -4,116 +4,134 @@ from pdf2image import convert_from_path, pdfinfo_from_path
 from PIL import Image
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024 # 100MBまで許可
-UPLOAD_FOLDER = 'temp_storage'
+# Render等の無料サーバーでは /tmp フォルダを使用するのが鉄則です
+UPLOAD_FOLDER = '/tmp/material_studio'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# --- 設定 ---
-DEV_PASS = "dev_admin_key"
-USER_PASS = "user_pro_key"
-FILE_LIMIT = 3
-usage_tracker = {}
+# ==========================================
+# 【設定】パスワードと制限
+# ==========================================
+DEV_PASS = "admin1234"      # あなた（開発者）用
+USER_PASS = "pro_user_77"   # 販売・配布用
+DAILY_FILE_LIMIT = 3        # 一般ユーザーの1日上限
+usage_tracker = {}          # {IP: {"count": 0, "reset": timestamp}}
 
-def get_client_ip():
+def force_cleanup():
+    """Pythonのゴミ拾い(GC)を強制実行し、メモリをOSに返却しやすくする"""
+    gc.collect()
+    time.sleep(0.1)
+
+def get_ip():
     return request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0]
 
-def make_transparent_extreme(image):
-    """中間データを一切作らない究極の透過処理"""
+def check_limit(ip, count):
+    now = time.time()
+    if ip not in usage_tracker:
+        usage_tracker[ip] = {"count": 0, "reset": now}
+    # 24時間経過でリセット
+    if now - usage_tracker[ip]["reset"] > 86400:
+        usage_tracker[ip] = {"count": 0, "reset": now}
+    return usage_tracker[ip]["count"] + count <= DAILY_FILE_LIMIT
+
+def make_transparent_optimized(image):
+    """ピクセルループを回避し、メモリ負荷を抑えて白背景を抜く"""
     img = image.convert("RGBA")
-    # 明るい部分を特定してアルファを0にする（高速・低メモリ）
     r, g, b, a = img.split()
-    # 245以上の白をマスク
+    # 245以上の白をマスク。255固定よりスキャンデータ等に強い
     mask = Image.eval(lambda r_v, g_v, b_v: 255 if r_v > 245 and g_v > 245 and b_v > 245 else 0, r, g, b)
     new_a = Image.eval(lambda a_v, m_v: 0 if m_v == 255 else a_v, a, mask)
     img.putalpha(new_a)
-    # 分解したデータを即時削除
     del r, g, b, a, mask
     return img
 
-def process_single_pdf_sequentially(pdf_path, dpi, is_transparent, zip_file, base_filename):
-    """PDFを1ページずつ読み込んで処理する（最も負荷が低い方法）"""
+def convert_pdf_sequentially(pdf_path, dpi, is_transparent, zip_file, base_name):
+    """
+    1ページずつ読み込み→処理→保存を繰り返す。
+    全ページ一括読み込みをしないため、メモリ消費が常に1ページ分で済みます。
+    """
     try:
-        # PDFの情報を取得
         info = pdfinfo_from_path(pdf_path)
         total_pages = info["Pages"]
+        processed_count = 0
         
-        success_count = 0
-        # 最大15ページまで1ページずつループ
-        for i in range(1, min(total_pages, 15) + 1):
-            # first_page と last_page を同じにして、1枚だけをメモリに呼ぶ
-            page_list = convert_from_path(pdf_path, dpi=dpi, first_page=i, last_page=i, thread_count=1)
-            if not page_list: continue
+        # 安全のため最大15ページまでに制限（必要なら変更可）
+        for p in range(1, min(total_pages, 15) + 1):
+            pages = convert_from_path(pdf_path, dpi=dpi, first_page=p, last_page=p, thread_count=1)
+            if not pages: continue
             
-            page = page_list[0]
+            img = pages[0]
             if is_transparent:
-                page = make_transparent_extreme(page)
+                img = make_transparent_optimized(img)
             else:
-                page = page.convert("RGB")
+                img = img.convert("RGB")
             
             img_io = io.BytesIO()
-            page.save(img_io, format='PNG', optimize=False)
-            zip_file.writestr(f"{base_filename}_{i:03d}.png", img_io.getvalue())
+            img.save(img_io, format='PNG', optimize=False)
+            zip_file.writestr(f"{base_name}_{p:03d}.png", img_io.getvalue())
             
-            # 1ページごとに徹底的に掃除
+            # ページごとにメモリを徹底解放
             img_io.close()
-            page.close()
-            del page, page_list
-            gc.collect() 
-            success_count += 1
+            img.close()
+            del img, pages
+            force_cleanup()
+            processed_count += 1
             
-        return success_count
+        return processed_count
     except Exception as e:
-        print(f"Error processing {base_filename}: {e}")
+        print(f"Error: {e}")
         return 0
 
-@app.route('/', methods=['GET'])
+@app.route('/')
 def index():
+    force_cleanup()
     return render_template('index.html')
 
 @app.route('/convert', methods=['POST'])
 def convert():
-    user_ip = get_client_ip()
+    force_cleanup()
+    
     pwd = request.form.get('password', '')
     is_pro = (pwd == DEV_PASS or pwd == USER_PASS)
+    ip = get_ip()
+    
     files = request.files.getlist('file')
-    valid_files = [f for f in files if f.filename != '']
+    valid_files = [f for f in files if f.filename.lower().endswith('.pdf')]
     
     if not is_pro:
-        now = time.time()
-        if user_ip not in usage_tracker: usage_tracker[user_ip] = {"count": 0, "reset": now}
-        if now - usage_tracker[user_ip]["reset"] > 86400: usage_tracker[user_ip] = {"count": 0, "reset": now}
-        if usage_tracker[user_ip]["count"] + len(valid_files) > FILE_LIMIT:
-            return jsonify({"error": "無料枠制限（1日3枚）を超えました。Proパスワードを入力してください。"}), 403
+        if not check_limit(ip, len(valid_files)):
+            return jsonify({"error": "1日の無料枠を超えました。パスワードを入力してください。"}), 403
 
     try:
         dpi = int(request.form.get('dpi', 150))
         is_transparent = 'transparent' in request.form
         zip_buffer = io.BytesIO()
-        processed_total = 0
+        total_images = 0
         
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as master_zip:
-            for file in valid_files:
-                tmp_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}.pdf")
-                file.save(tmp_path)
+            for f in valid_files:
+                tmp_name = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}.pdf")
+                f.save(tmp_name)
                 
-                # 逐次処理実行
-                res = process_single_pdf_sequentially(tmp_path, dpi, is_transparent, master_zip, os.path.splitext(file.filename)[0])
-                processed_total += res
+                # 逐次変換実行
+                count = convert_pdf_sequentially(tmp_name, dpi, is_transparent, master_zip, os.path.splitext(f.filename)[0])
+                total_images += count
                 
-                if os.path.exists(tmp_path): os.remove(tmp_path)
-                gc.collect()
+                if os.path.exists(tmp_name): os.remove(tmp_name)
+                force_cleanup()
 
-        if processed_total == 0:
-            return jsonify({"error": "画像が生成されませんでした。PDFが空か、処理に失敗しました。"}), 500
+        if total_images == 0:
+            return jsonify({"error": "変換に失敗しました。PDFが空か、解析不能です。"}), 500
 
-        if not is_pro: usage_tracker[user_ip]["count"] += len(valid_files)
+        if not is_pro:
+            usage_tracker[ip]["count"] += len(valid_files)
         
         zip_buffer.seek(0)
         return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, download_name="materials.zip")
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"サーバーメモリ限界です。画質を下げるか1枚ずつ試してください。({str(e)})"}), 500
+    finally:
+        force_cleanup()
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=5000)
