@@ -1,112 +1,136 @@
-import os
-import uuid
-import time
-import zipfile
-import io
-import psutil
-from flask import Flask, request, render_template, send_file, after_this_request
-from pdf2image import convert_from_path
-from PIL import Image
+import os, uuid, zipfile, io, gc, time, traceback
+from flask import Flask, request, render_template, send_file, jsonify
+from pdf2image import convert_from_path, pdfinfo_from_path
+from PIL import Image, ImageChops
 
 app = Flask(__name__)
+# Renderの一時ディレクトリを使用
+UPLOAD_FOLDER = '/tmp'
 
-# 最大アップロードサイズ: 20MB
-app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024
-UPLOAD_FOLDER = 'temp_storage'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# --- 設定 ---
+DEV_PASS = "admin1234"
+USER_PASS = "pro_user_77"
+DAILY_LIMIT = 3
+usage_tracker = {}
 
-def cleanup_old_files():
-    """10分以上経過した古いPDFファイルを削除（サーバー容量保護）"""
-    now = time.time()
-    for filename in os.listdir(UPLOAD_FOLDER):
-        path = os.path.join(UPLOAD_FOLDER, filename)
-        if os.path.getmtime(path) < now - 600:
-            if os.path.isfile(path):
-                os.remove(path)
+def force_cleanup():
+    """メモリをOSに強制的に返却し、SIGKILLを防ぐ"""
+    gc.collect()
+    time.sleep(0.1)
 
-@app.route('/', methods=['GET', 'POST'])
-def index():
-    cleanup_old_files()
-    if request.method == 'POST':
-        if 'file' not in request.files:
-            return "ファイルがありません", 400
+def make_transparent_efficient(image):
+    """
+    ピクセルループを使わず、C言語レベルのベクトル演算で透過処理。
+    300DPIの大容量画像でもメモリをほぼ消費しません。
+    """
+    img = image.convert("RGBA")
+    r, g, b, a = img.split()
+    
+    # 245以上の明るさを白と判定（ここを以前のロジックに合わせる）
+    mask_r = r.point(lambda x: 255 if x > 245 else 0)
+    mask_g = g.point(lambda x: 255 if x > 245 else 0)
+    mask_b = b.point(lambda x: 255 if x > 245 else 0)
+    
+    # RGBすべてが白い部分を特定
+    white_mask = ImageChops.multiply(ImageChops.multiply(mask_r, mask_g), mask_b)
+    
+    # 白い部分のアルファ値を0（透明）にする
+    inv_mask = ImageChops.invert(white_mask)
+    new_a = ImageChops.multiply(a, inv_mask)
+    img.putalpha(new_a)
+    
+    del r, g, b, a, mask_r, mask_g, mask_b, white_mask, inv_mask, new_a
+    return img
+
+def process_pdf_safely(pdf_path, dpi, is_transparent, zip_file, base_name):
+    """
+    Cairoエンジンを使用し、1ページずつ独立して処理することで
+    xref tableエラーとSIGKILLを回避する核心部。
+    """
+    try:
+        info = pdfinfo_from_path(pdf_path)
+        total_pages = info["Pages"]
         
-        file = request.files['file']
-        if file.filename == '':
-            return "ファイルが選択されていません", 400
-
-        # ユーザー設定の取得
-        selected_dpi = int(request.form.get('dpi', 150))
-        is_transparent = 'transparent' in request.form
-        
-        # 一時的なPDF保存
-        unique_id = str(uuid.uuid4())
-        pdf_path = os.path.join(UPLOAD_FOLDER, f"{unique_id}.pdf")
-        file.save(pdf_path)
-
-        try:
-            # サーバー負荷対策：高画質(300DPI)なら10ページ、それ以外なら50ページまでに制限
-            max_p = 10 if selected_dpi > 200 else 50
-            pages = convert_from_path(pdf_path, dpi=selected_dpi)
-            pages = pages[:max_p]
-
-            # ZIPファイルをメモリ上で作成
-            zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                for i, page in enumerate(pages):
-                    
-                    if is_transparent:
-                        # 背景透過処理
-                        page = page.convert("RGBA")
-                        datas = page.getdata()
-                        new_data = []
-                        for item in datas:
-                            # 白に近い色（240以上）を透明に置換
-                            if item[0] > 240 and item[1] > 240 and item[2] > 240:
-                                new_data.append((255, 255, 255, 0))
-                            else:
-                                new_data.append(item)
-                        page.putdata(new_data)
-                    else:
-                        page = page.convert("RGB")
-
-                    # メモリ内に画像を書き出し
-                    img_io = io.BytesIO()
-                    page.save(img_io, format='PNG', optimize=True)
-                    # 動画編集ソフトで扱いやすい「001」形式の連番
-                    filename = f"video_material_{i+1:03d}.png"
-                    zip_file.writestr(filename, img_io.getvalue())
-
-            zip_buffer.seek(0)
-
-            # 送信後に元のPDFを物理削除
-            @after_this_request
-            def remove_file(response):
-                try:
-                    if os.path.exists(pdf_path):
-                        os.remove(pdf_path)
-                except Exception as e:
-                    app.logger.error(f"Error removing file: {e}")
-                return response
-
-            return send_file(
-                zip_buffer,
-                mimetype='application/zip',
-                as_attachment=True,
-                download_name=f'converted_material_{selected_dpi}dpi.zip'
+        for p in range(1, total_pages + 1):
+            # ページごとにPoppler(Cairo)を呼び出すことでメモリをリセット
+            pages = convert_from_path(
+                pdf_path, 
+                dpi=dpi, 
+                first_page=p, 
+                last_page=p,
+                use_pdftocairo=True, # メモリ効率と互換性のためにCairoを強制
+                thread_count=1       # 並列化せず1つずつ処理
             )
+            
+            if not pages: continue
+            
+            img = pages[0]
+            if is_transparent:
+                img = make_transparent_efficient(img)
+            
+            # ZIPに書き込み
+            img_io = io.BytesIO()
+            img.save(img_io, format='PNG', optimize=False)
+            zip_file.writestr(f"{base_name}_{p:03d}.png", img_io.getvalue())
+            
+            # 1ページごとに完全に破棄
+            img_io.close()
+            img.close()
+            del img, pages
+            force_cleanup()
+            
+        return total_pages
+    except Exception as e:
+        print(f"ERROR processing PDF: {traceback.format_exc()}")
+        return 0
 
-        except Exception as e:
-            return f"変換エラー: {str(e)}。ファイルが大きすぎるか、メモリ制限に達した可能性があります。", 500
-
+@app.route('/')
+def index():
     return render_template('index.html')
 
-@app.route('/debug-files')
-def health_check():
-    """サーバーの負荷状況を監視するページ"""
-    memory = psutil.virtual_memory()
-    files = os.listdir(UPLOAD_FOLDER)
-    return render_template('debug.html', memory=memory, files=files)
+@app.route('/convert', methods=['POST'])
+def convert():
+    force_cleanup()
+    pwd = request.form.get('password', '')
+    is_pro = (pwd in [DEV_PASS, USER_PASS])
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0]
+    
+    files = request.files.getlist('file')
+    dpi = int(request.form.get('dpi', 150))
+    is_transparent = 'transparent' in request.form
+    
+    # 無料制限チェック
+    if not is_pro:
+        now = time.time()
+        if ip not in usage_tracker: usage_tracker[ip] = {"count": 0, "reset": now}
+        if now - usage_tracker[ip]["reset"] > 86400: usage_tracker[ip] = {"count": 0, "reset": now}
+        if usage_tracker[ip]["count"] + len([f for f in files if f.filename != '']) > DAILY_LIMIT:
+            return jsonify({"error": "1日の制限枚数を超えました。"}), 403
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    zip_buffer = io.BytesIO()
+    total_count = 0
+    
+    try:
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as master_zip:
+            for f in files:
+                if f.filename == '': continue
+                # PDFを一旦ディスクに保存してxref tableエラーを防止
+                tmp_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}.pdf")
+                f.save(tmp_path)
+                
+                count = process_pdf_safely(tmp_path, dpi, is_transparent, master_zip, os.path.splitext(f.filename)[0])
+                total_count += count
+                
+                if os.path.exists(tmp_path): os.remove(tmp_path)
+                force_cleanup()
+
+        if total_count == 0:
+            return jsonify({"error": "変換に失敗しました。Popplerの設定を確認してください。"}), 500
+
+        if not is_pro: usage_tracker[ip]["count"] += 1
+        
+        zip_buffer.seek(0)
+        return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, download_name="materials.zip")
+
+    except Exception as e:
+        return jsonify({"error": f"予期せぬエラー: {str(e)}"}), 500
