@@ -1,88 +1,84 @@
 import os, uuid, zipfile, io, gc, time, traceback
 from flask import Flask, request, render_template, send_file, jsonify
 from pdf2image import convert_from_path, pdfinfo_from_path
-from PIL import Image, ImageChops
+from PIL import Image
 
 app = Flask(__name__)
-# Renderの環境に合わせた一時フォルダ設定
+# Renderでの動作を安定させるための一時フォルダ
 UPLOAD_FOLDER = '/tmp/material_studio'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # ==========================================
-# 設定
+# 設定：パスワードと制限
 # ==========================================
 DEV_PASS = "admin1234"      # 開発者用
-USER_PASS = "pro_user_77"   # Proユーザー用
+USER_PASS = "pro_user_77"   # 一般ユーザー用
 DAILY_LIMIT = 3
 usage_tracker = {}
 
-# ==========================================
-# 補助関数（メイン処理より先に定義）
-# ==========================================
-
 def force_cleanup():
-    """メモリの強制掃除"""
+    """メモリを強制的に解放しOSに返却しやすくする"""
     gc.collect()
     time.sleep(0.1)
 
-def make_transparent_robust(image):
-    """背景を透明にする（高精度・低負荷版）"""
+def make_transparent(image):
+    """
+    以前成功していた透過ロジックの安定版。
+    245以上の白を透明に置き換えます。
+    """
     img = image.convert("RGBA")
-    r, g, b, a = img.split()
+    datas = img.getdata()
     
-    # 245以上の明るさを白と判定（マスク作成）
-    mask_r = r.point(lambda x: 255 if x > 245 else 0, mode='L')
-    mask_g = g.point(lambda x: 255 if x > 245 else 0, mode='L')
-    mask_b = b.point(lambda x: 255 if x > 245 else 0, mode='L')
-
-    # すべての色が白い部分を特定
-    combined_mask = ImageChops.darker(ImageChops.darker(mask_r, mask_g), mask_b)
+    new_data = []
+    for item in datas:
+        # R, G, B すべてが245以上（ほぼ白）ならアルファを0にする
+        if item[0] > 245 and item[1] > 245 and item[2] > 245:
+            new_data.append((255, 255, 255, 0))
+        else:
+            new_data.append(item)
     
-    # 白い部分のアルファを0（透明）にする
-    inv_mask = ImageChops.invert(combined_mask)
-    new_a = ImageChops.darker(a, inv_mask)
-    
-    img.putalpha(new_a)
-    del r, g, b, a, mask_r, mask_g, mask_b, combined_mask, inv_mask
+    img.putdata(new_data)
     return img
 
 def convert_pdf_sequentially(pdf_path, dpi, is_transparent, zip_file, base_name):
-    """PDFを1ページずつメモリに呼んで処理（最重要：負荷対策）"""
+    """
+    PDFを1ページずつ読み込んで処理。
+    これにより1000KB超のファイルでもメモリ爆発を防ぎます。
+    """
     try:
         info = pdfinfo_from_path(pdf_path)
         total_pages = info["Pages"]
         processed_count = 0
         
-        # 最大15ページに制限
+        # 安全のため15ページ上限（必要に応じて変更可）
         for p in range(1, min(total_pages, 15) + 1):
-            # 必要な1ページだけをロード
+            # 特定の1ページだけをメモリに呼ぶ
             pages = convert_from_path(pdf_path, dpi=dpi, first_page=p, last_page=p, thread_count=1)
             if not pages: continue
             
             img = pages[0]
             if is_transparent:
-                img = make_transparent_robust(img)
+                img = make_transparent(img)
             else:
                 img = img.convert("RGB")
             
             img_io = io.BytesIO()
             img.save(img_io, format='PNG', optimize=False)
+            
+            # ZIPに書き込み
             zip_file.writestr(f"{base_name}_{p:03d}.png", img_io.getvalue())
             
+            # 1ページごとにメモリを徹底破棄
             img_io.close()
             img.close()
             del img, pages
-            force_cleanup() # 1ページごとに掃除
+            force_cleanup()
             processed_count += 1
             
         return processed_count
     except Exception as e:
         print(f"DEBUG Error: {traceback.format_exc()}")
         return 0
-
-# ==========================================
-# ルート（実行処理）
-# ==========================================
 
 @app.route('/')
 def index():
@@ -100,12 +96,13 @@ def convert():
     files = request.files.getlist('file')
     valid_files = [f for f in files if f.filename != '']
     
+    # パスワードがない場合のみ制限をかける
     if not is_pro:
         now = time.time()
         if ip not in usage_tracker: usage_tracker[ip] = {"count": 0, "reset": now}
         if now - usage_tracker[ip]["reset"] > 86400: usage_tracker[ip] = {"count": 0, "reset": now}
         if usage_tracker[ip]["count"] + len(valid_files) > DAILY_LIMIT:
-            return jsonify({"error": "無料枠を超えました。パスワードを入力してください。"}), 403
+            return jsonify({"error": "無料枠制限(1日3枚)を超えました。"}), 403
 
     try:
         dpi = int(request.form.get('dpi', 150))
@@ -118,7 +115,7 @@ def convert():
                 tmp_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}.pdf")
                 f.save(tmp_path)
                 
-                # ここで定義済みの関数を呼び出し
+                # 逐次変換の呼び出し
                 count = convert_pdf_sequentially(tmp_path, dpi, is_transparent, master_zip, os.path.splitext(f.filename)[0])
                 total_images += count
                 
@@ -126,7 +123,7 @@ def convert():
                 force_cleanup()
 
         if total_images == 0:
-            return jsonify({"error": "変換に失敗しました。PDFを読み込めません。"}), 500
+            return jsonify({"error": "変換に失敗しました。PDFを解析できません。"}), 500
 
         if not is_pro:
             usage_tracker[ip]["count"] += len(valid_files)
