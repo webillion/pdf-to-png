@@ -1,5 +1,5 @@
-import os, uuid, time, zipfile, io
-from flask import Flask, request, render_template, send_file, make_response, jsonify
+import os, uuid, zipfile, io, gc
+from flask import Flask, request, render_template, send_file, jsonify
 from pdf2image import convert_from_path
 
 app = Flask(__name__)
@@ -8,35 +8,39 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 UPLOAD_FOLDER = 'temp_storage'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-def process_pdf_to_images(pdf_path, dpi, is_transparent):
-    """PDFをPNG画像に変換（メモリ消費を抑える修正版）"""
+def process_pdf_to_zip(pdf_path, dpi, is_transparent, zip_file, base_filename):
+    """PDFを解析し、1枚ずつZIPに書き込んでメモリから即消去する"""
     try:
-        # メモリ節約のため thread_count=1 に設定
+        # thread_count=1 で並列処理によるメモリ爆発を防止
         pages = convert_from_path(pdf_path, dpi=dpi, thread_count=1)
-        # 1ファイルあたり最大15ページ制限
         target_pages = pages[:15]
         
-        output_images = []
         for i, page in enumerate(target_pages):
             if is_transparent:
                 page = page.convert("RGBA")
+                # 透過処理（メモリ効率のためインプレースに近い形で処理）
                 datas = page.getdata()
                 new_data = [(255, 255, 255, 0) if d[0]>240 and d[1]>240 and d[2]>240 else d for d in datas]
                 page.putdata(new_data)
             else:
                 page = page.convert("RGB")
             
+            # 画像をバイナリ化して即ZIP書き込み
             img_io = io.BytesIO()
-            page.save(img_io, format='PNG')
-            output_images.append((f"_{i+1:03d}.png", img_io.getvalue()))
+            page.save(img_io, format='PNG', optimize=False)
+            zip_file.writestr(f"{base_filename}_{i+1:03d}.png", img_io.getvalue())
             
-            # 各ページのオブジェクトを明示的に削除してメモリを空ける
+            # 使用済みオブジェクトの明示的削除
+            img_io.close()
             page.close()
+            del page
             
-        return output_images
+        del pages
+        gc.collect() # 1ファイルごとにゴミ拾いを実行
+        return True
     except Exception as e:
-        print(f"Error processing {pdf_path}: {e}")
-        return []
+        print(f"Error processing {base_filename}: {e}")
+        return False
 
 @app.route('/', methods=['GET'])
 def index():
@@ -47,68 +51,61 @@ def convert():
     try:
         files = request.files.getlist('file')
         if not files or files[0].filename == '':
-            return jsonify({"error": "ファイルが正しく読み込めませんでした。"}), 400
+            return jsonify({"error": "ファイルが選択されていません。"}), 400
 
         selected_dpi = int(request.form.get('dpi', 150))
         is_transparent = 'transparent' in request.form
         
-        all_converted_data = []
-        total_pdf_count = 0
-        MAX_PDF_LIMIT = 20
-
-        for file in files:
-            filename_low = file.filename.lower()
-            
-            if filename_low.endswith('.zip'):
-                file.seek(0)
-                file_content = file.read()
-                with zipfile.ZipFile(io.BytesIO(file_content), 'r') as ref_zip:
-                    pdf_infos = [z for z in ref_zip.infolist() if not z.is_dir() and z.filename.lower().endswith('.pdf')]
-                    total_pdf_count += len(pdf_infos)
-                    
-                    if total_pdf_count > MAX_PDF_LIMIT:
-                        return jsonify({"error": f"処理制限を超えています（合計{total_pdf_count}/20個）"}), 400
-
-                    for z_info in pdf_infos:
-                        with ref_zip.open(z_info) as z_file:
-                            tmp_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}.pdf")
-                            with open(tmp_path, "wb") as f: f.write(z_file.read())
-                            images = process_pdf_to_images(tmp_path, selected_dpi, is_transparent)
-                            base_path = os.path.splitext(z_info.filename)[0]
-                            for suffix, data in images:
-                                all_converted_data.append((base_path + suffix, data))
-                            if os.path.exists(tmp_path): os.remove(tmp_path)
-
-            elif filename_low.endswith('.pdf'):
-                total_pdf_count += 1
-                if total_pdf_count > MAX_PDF_LIMIT:
-                    return jsonify({"error": "合計20ファイルまでしか処理できません。"}), 400
-
-                tmp_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}.pdf")
-                file.save(tmp_path)
-                images = process_pdf_to_images(tmp_path, selected_dpi, is_transparent)
-                base_path = os.path.splitext(file.filename)[0]
-                for suffix, data in images:
-                    all_converted_data.append((base_path + suffix, data))
-                if os.path.exists(tmp_path): os.remove(tmp_path)
-
-        if not all_converted_data:
-            return jsonify({"error": "変換可能なPDFが見つかりませんでした。"}), 400
-
-        zip_output = io.BytesIO()
-        if len(all_converted_data) == 1:
-            path, data = all_converted_data[0]
-            return send_file(io.BytesIO(data), mimetype='image/png', as_attachment=True, download_name=os.path.basename(path))
-
-        with zipfile.ZipFile(zip_output, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-            for path, data in all_converted_data:
-                zip_file.writestr(path, data)
+        # メモリ上にZIPを作成
+        zip_buffer = io.BytesIO()
         
-        zip_output.seek(0)
-        return send_file(zip_output, mimetype='application/zip', as_attachment=True, download_name="materials_collection.zip")
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as master_zip:
+            total_pdf_count = 0
+            
+            for file in files:
+                filename_low = file.filename.lower()
+                
+                # ZIPファイル内の処理
+                if filename_low.endswith('.zip'):
+                    file_content = file.read()
+                    with zipfile.ZipFile(io.BytesIO(file_content), 'r') as ref_zip:
+                        pdf_infos = [z for z in ref_zip.infolist() if not z.is_dir() and z.filename.lower().endswith('.pdf')]
+                        for z_info in pdf_infos:
+                            if total_pdf_count >= 20: break
+                            total_pdf_count += 1
+                            
+                            with ref_zip.open(z_info) as z_file:
+                                tmp_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}.pdf")
+                                with open(tmp_path, "wb") as f: f.write(z_file.read())
+                                
+                                base_name = os.path.splitext(z_info.filename)[0]
+                                process_pdf_to_zip(tmp_path, selected_dpi, is_transparent, master_zip, base_name)
+                                
+                                if os.path.exists(tmp_path): os.remove(tmp_path)
+
+                # 単一PDFの処理
+                elif filename_low.endswith('.pdf'):
+                    if total_pdf_count >= 20: break
+                    total_pdf_count += 1
+                    
+                    tmp_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}.pdf")
+                    file.save(tmp_path)
+                    
+                    base_name = os.path.splitext(file.filename)[0]
+                    process_pdf_to_zip(tmp_path, selected_dpi, is_transparent, master_zip, base_name)
+                    
+                    if os.path.exists(tmp_path): os.remove(tmp_path)
+
+        zip_buffer.seek(0)
+        return send_file(
+            zip_buffer,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name="material_studio_output.zip"
+        )
 
     except Exception as e:
-        return jsonify({"error": f"サーバーエラー: {str(e)}"}), 500
+        return jsonify({"error": f"サーバー負荷エラー: 画質を下げるかファイル数を減らしてください。({str(e)})"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
