@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-            <!-- Google tag (gtag.js) -->
+             <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -11,90 +11,64 @@
   gtag('config', 'G-MTB190WE2E');
 </script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Material Studio Pro</title>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; --danger: #ef4444; }
-        body { background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 10px; }
-        .container { background: var(--card); padding: 2rem; border-radius: 1.5rem; width: 100%; max-width: 420px; box-shadow: 0 25px 50px rgba(0,0,0,0.5); text-align: center; }
-        .input-field { background: #334155; border: 1px solid #475569; color: white; padding: 0.8rem; border-radius: 0.6rem; width: 100%; box-sizing: border-box; margin-bottom: 1rem; outline: none; }
-        .drop-zone { border: 2px dashed #475569; padding: 2rem 1rem; border-radius: 1rem; cursor: pointer; transition: 0.3s; margin-bottom: 1rem; }
-        .drop-zone.drag-over { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
-        button { width: 100%; padding: 0.9rem; border-radius: 0.6rem; border: none; font-size: 1rem; background: var(--accent); color: var(--bg); font-weight: bold; cursor: pointer; }
-        button:disabled { background: #475569; cursor: wait; }
-        #error-box { display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); color: var(--danger); padding: 1rem; border-radius: 0.6rem; margin-bottom: 1rem; text-align: left; font-size: 0.85rem; }
-        .buy-btn { display: none; background: #f43f5e; color: white; text-decoration: none; padding: 0.8rem; border-radius: 0.6rem; margin-bottom: 1rem; font-weight: bold; display: block; border: 2px solid white; }
+        :root { --bg: #0f172a; --accent: #38bdf8; --text: #f8fafc; }
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background: #1e293b; padding: 2rem; border-radius: 1rem; width: 400px; text-align: center; }
+        .input-field { background: #334155; border: 1px solid #475569; color: white; padding: 0.8rem; border-radius: 0.5rem; width: 100%; box-sizing: border-box; margin-bottom: 1rem; }
+        .drop-zone { border: 2px dashed #475569; padding: 2rem; border-radius: 1rem; cursor: pointer; margin-bottom: 1rem; }
+        button { width: 100%; padding: 1rem; border-radius: 0.5rem; border: none; background: var(--accent); color: #0f172a; font-weight: bold; cursor: pointer; }
+        #error-box { display: none; color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 style="color:var(--accent); margin-top:0;">Material Studio</h1>
-        <p style="font-size:0.8rem; opacity:0.7;">無料枠：1日3ファイルまで</p>
-
+        <h1>Material Studio</h1>
         <div id="error-box"></div>
-        <a href="あなたのBOOTHリンク" id="buy-btn" class="buy-btn" style="display:none">🎫 パスワードを購入する</a>
-
+        
         <form id="convert-form">
             <input type="password" id="password" class="input-field" placeholder="パスワード（Pro・開発者用）">
             
             <div class="drop-zone" id="drop-zone">
-                <p id="drop-text" style="pointer-events: none;">PDFをドロップ<br><small>パスワードなしは最大3つまで</small></p>
+                <p id="drop-text">PDFをドロップ (最大3枚 / Pro無制限)</p>
                 <input type="file" id="file-input" accept=".pdf" multiple style="display:none">
             </div>
 
-            <div style="text-align:left; margin-bottom:1rem; font-size:0.9rem;">
+            <div style="text-align:left; margin-bottom:1rem;">
                 <select id="dpi" class="input-field">
-                    <option value="150">150 DPI (標準)</option>
-                    <option value="300" selected>300 DPI (最高品質)</option>
+                    <option value="150">150 DPI</option>
+                    <option value="300" selected>300 DPI</option>
                 </select>
-                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                    <input type="checkbox" id="transparent" checked> 背景を透明にする
-                </label>
+                <label><input type="checkbox" id="transparent" checked> 背景を透明にする</label>
             </div>
             
-            <button type="submit" id="submit-btn">変換してダウンロード</button>
+            <button type="submit" id="submit-btn">変換を開始</button>
         </form>
-        <div id="loading" style="display:none; color:var(--accent); margin-top:1rem; font-weight:bold;">⌛ 変換中...（最大1分ほど）</div>
+        <p id="loading" style="display:none; color:var(--accent);">⌛ 処理中...（数分かかる場合があります）</p>
     </div>
 
     <script>
-        const dropZone = document.getElementById('drop-zone');
+        const devPass = "dev_admin_key";
+        const userPass = "user_pro_key";
         const fileInput = document.getElementById('file-input');
-        const dropText = document.getElementById('drop-text');
-        const errorBox = document.getElementById('error-box');
-        const buyBtn = document.getElementById('buy-btn');
+        const dropZone = document.getElementById('drop-zone');
 
-        // パスワード確認用（ここにもサーバーと同じパスワードを入れておくと、送信前にはじけます）
-        function isPro() {
-            const pass = document.getElementById('password').value;
-            return (pass === "dev_admin_key" || pass === "user_pro_key");
+        // パスワードが正しいか判定
+        function isUnlocked() {
+            const val = document.getElementById('password').value;
+            return val === devPass || val === userPass;
         }
 
-        function validateFiles(files) {
-            if (!isPro() && files.length > 3) {
-                errorBox.innerText = "⚠️ 無料版は一度に3ファイルまでです。パスワードを入力してください。";
-                errorBox.style.display = 'block';
-                return false;
-            }
-            errorBox.style.display = 'none';
-            return true;
-        }
-
-        ['dragover', 'dragenter'].forEach(n => dropZone.addEventListener(n, e => { e.preventDefault(); dropZone.classList.add('drag-over'); }));
-        ['dragleave', 'drop'].forEach(n => dropZone.addEventListener(n, () => dropZone.classList.remove('drag-over')));
-        
-        dropZone.addEventListener('drop', e => {
-            e.preventDefault();
-            if (validateFiles(e.dataTransfer.files)) {
-                fileInput.files = e.dataTransfer.files;
-                dropText.innerText = `${fileInput.files.length}件選択中`;
-            }
-        });
-
+        ['dragover', 'drop'].forEach(n => dropZone.addEventListener(n, e => e.preventDefault()));
         dropZone.addEventListener('click', () => fileInput.click());
+        
         fileInput.addEventListener('change', () => {
-            if (validateFiles(fileInput.files)) {
-                dropText.innerText = `${fileInput.files.length}件選択中`;
+            if (!isUnlocked() && fileInput.files.length > 3) {
+                alert("無料版は一度に3枚までです。パスワードを入力してください。");
+                fileInput.value = "";
+            } else {
+                document.getElementById('drop-text').innerText = `${fileInput.files.length}枚選択中`;
             }
         });
 
@@ -104,32 +78,27 @@
 
             document.getElementById('submit-btn').disabled = true;
             document.getElementById('loading').style.display = 'block';
-            errorBox.style.display = 'none';
-            buyBtn.style.display = 'none';
 
             const formData = new FormData();
-            for(let f of fileInput.files) { formData.append('file', f); }
-            formData.append('dpi', document.getElementById('dpi').value);
+            for(let f of fileInput.files) formData.append('file', f);
             formData.append('password', document.getElementById('password').value);
+            formData.append('dpi', document.getElementById('dpi').value);
             if(document.getElementById('transparent').checked) formData.append('transparent', 'on');
 
             try {
                 const response = await fetch('/convert', { method: 'POST', body: formData });
-                
                 if (!response.ok) {
-                    const resData = await response.json();
-                    if (response.status === 403) buyBtn.style.display = 'block';
-                    throw new Error(resData.error);
+                    const data = await response.json();
+                    throw new Error(data.error);
                 }
-
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a'); a.href = url; a.download = "output.zip";
-                document.body.appendChild(a); a.click(); a.remove();
-                
+                a.click();
             } catch (err) {
-                errorBox.innerText = `⚠️ ${err.message}`;
-                errorBox.style.display = 'block';
+                const errBox = document.getElementById('error-box');
+                errBox.innerText = `⚠️ ${err.message}`;
+                errBox.style.display = 'block';
             } finally {
                 document.getElementById('submit-btn').disabled = false;
                 document.getElementById('loading').style.display = 'none';
