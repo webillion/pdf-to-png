@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-          <!-- Google tag (gtag.js) -->
+           <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -11,123 +11,100 @@
   gtag('config', 'G-MTB190WE2E');
 </script>
     <meta charset="UTF-8">
-    <title>Material Studio Pro</title>
+    <title>Video Material Studio | PDF to PNG</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; }
-        body { background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
-        .container { background: var(--card); padding: 2.5rem; border-radius: 1.5rem; width: 100%; max-width: 440px; box-shadow: 0 25px 50px rgba(0,0,0,0.5); text-align: center; }
-        .input-field { background: #334155; border: 1px solid #475569; color: white; padding: 0.8rem; border-radius: 0.6rem; width: 100%; box-sizing: border-box; margin-bottom: 1rem; outline: none; }
-        .drop-zone { border: 2px dashed #475569; padding: 2.5rem 1rem; border-radius: 1rem; cursor: pointer; background: rgba(255,255,255,0.02); transition: 0.3s; }
-        .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
-        #file-list { margin-top: 1rem; text-align: left; font-size: 0.85rem; background: #0f172a; padding: 0.8rem; border-radius: 0.6rem; display: none; border: 1px solid #334155; }
-        .file-item { color: #94a3b8; border-bottom: 1px solid #1e293b; padding: 5px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        button { width: 100%; padding: 1rem; border-radius: 0.6rem; border: none; font-size: 1.1rem; background: var(--accent); color: #0f172a; font-weight: bold; cursor: pointer; margin-top: 1.5rem; }
-        button:disabled { opacity: 0.5; cursor: wait; }
-        #loading { display: none; color: var(--accent); margin-top: 1rem; font-weight: bold; }
-        #error-box { display: none; color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 0.6rem; margin-bottom: 1rem; font-size: 0.85rem; text-align: left; }
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background: var(--card); padding: 2.5rem; border-radius: 1.5rem; width: 400px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+        .drop-zone { border: 2px dashed #475569; padding: 3rem 1rem; border-radius: 1rem; cursor: pointer; transition: 0.3s; margin-bottom: 1.5rem; background: rgba(255,255,255,0.02); }
+        .drop-zone.drag-over { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+        .option-group { background: rgba(0,0,0,0.2); padding: 1.2rem; border-radius: 0.8rem; text-align: left; margin-bottom: 1.5rem; }
+        label { display: block; font-size: 0.75rem; font-weight: bold; color: #94a3b8; margin-bottom: 0.5rem; }
+        select, button { width: 100%; padding: 0.8rem; border-radius: 0.5rem; border: none; font-size: 1rem; }
+        select { background: #334155; color: white; margin-bottom: 1rem; }
+        .check-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .check-row input { width: 18px; height: 18px; accent-color: var(--accent); }
+        button { background: var(--accent); color: var(--bg); font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #7dd3fc; }
+        #loading { display: none; color: var(--accent); margin-top: 1.5rem; font-weight: bold; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2 style="color:var(--accent); margin: 0 0 1.5rem 0;">Material Studio Pro</h2>
-        <div id="error-box"></div>
-        <form id="convert-form">
-            <input type="password" id="password" class="input-field" placeholder="Proパスワード（無制限解除）">
-            
+        <h1 style="color: var(--accent); margin-top:0;">Material Studio</h1>
+        <p style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 2rem;">PDF/ZIPを投入して透過PNGへ変換<br>ZIP内のフォルダ構造も完全に維持します</p>
+        
+        <form id="convert-form" method="POST" enctype="multipart/form-data">
             <div class="drop-zone" id="drop-zone">
-                <p id="drop-text">PDFをドロップして追加<br><small style="opacity:0.6;">(無料版は最大3ファイル)</small></p>
-                <div id="file-list"></div>
-                <input type="file" id="file-input" accept=".pdf" multiple style="display:none">
+                <p id="drop-text" style="margin:0;">PDF または ZIP をドロップ</p>
+                <input type="file" name="file" id="file-input" accept=".pdf,.zip" multiple style="display:none">
             </div>
 
-            <div style="text-align:left; margin-top:1.5rem;">
-                <select id="dpi" class="input-field">
-                    <option value="150">150 DPI (サクサク)</option>
-                    <option value="300" selected>300 DPI (最高品質)</option>
+            <div class="option-group">
+                <label>解像度（DPI）</label>
+                <select name="dpi" id="dpi">
+                    <option value="150" selected>150 DPI (標準)</option>
+                    <option value="300">300 DPI (高品質4K)</option>
+                    <option value="72">72 DPI (軽量)</option>
                 </select>
-                <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
-                    <input type="checkbox" id="transparent" checked style="width:18px; height:18px;"> 
-                    <span>背景を透明にする</span>
+                
+                <label class="check-row">
+                    <input type="checkbox" name="transparent" checked id="trans-check">
+                    <span style="color: white; font-size: 0.9rem;">背景を透明にする</span>
                 </label>
             </div>
             
-            <button type="submit" id="submit-btn">素材を生成する</button>
+            <button type="submit" id="submit-btn">変換を開始</button>
         </form>
-        <div id="loading">⌛ 1ページずつ丁寧に変換中...</div>
+        <div id="loading">🚀 サーバーで画像を生成中...</div>
     </div>
 
     <script>
-        const fileInput = document.getElementById('file-input');
         const dropZone = document.getElementById('drop-zone');
-        const fileList = document.getElementById('file-list');
+        const fileInput = document.getElementById('file-input');
         const dropText = document.getElementById('drop-text');
+        const btn = document.getElementById('submit-btn');
+        const loading = document.getElementById('loading');
 
-        function updateFiles(files) {
-            const pass = document.getElementById('password').value;
-            // サーバーと同じパスワードを設定してください
-            if (pass !== "admin1234" && pass !== "pro_user_77" && files.length > 3) {
-                alert("無料版は1回3枚までです。");
-                fileInput.value = "";
-                return;
+        // ドラッグ＆ドロップ制御
+        ['dragenter', 'dragover'].forEach(n => dropZone.addEventListener(n, e => { e.preventDefault(); dropZone.classList.add('drag-over'); }));
+        ['dragleave', 'drop'].forEach(n => dropZone.addEventListener(n, e => { e.preventDefault(); dropZone.classList.remove('drag-over'); }));
+        
+        dropZone.addEventListener('drop', e => {
+            const files = Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith('.pdf') || f.name.toLowerCase().endsWith('.zip'));
+            if(files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                dropText.innerText = `${files.length}件のファイルを準備完了`;
+                dropText.style.color = "#38bdf8";
             }
-            if (files.length > 0) {
-                dropText.style.display = 'none';
-                fileList.style.display = 'block';
-                fileList.innerHTML = '<strong>選択中:</strong>' + 
-                    Array.from(files).map(f => `<div class="file-item">📄 ${f.name}</div>`).join('');
-            }
-        }
+        });
 
-        ['dragover', 'dragenter'].forEach(n => dropZone.addEventListener(n, e => { e.preventDefault(); dropZone.classList.add('drag-over'); }));
-        ['dragleave', 'drop'].forEach(n => dropZone.addEventListener(n, () => dropZone.classList.remove('drag-over')));
-        dropZone.addEventListener('drop', e => { e.preventDefault(); fileInput.files = e.dataTransfer.files; updateFiles(fileInput.files); });
         dropZone.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', () => updateFiles(fileInput.files));
+        fileInput.addEventListener('change', () => {
+            if(fileInput.files.length > 0) dropText.innerText = `${fileInput.files.length}件をセット済み`;
+        });
 
-        document.getElementById('convert-form').onsubmit = async function(e) {
-            e.preventDefault();
-            if (fileInput.files.length === 0) return;
-
-            const btn = document.getElementById('submit-btn');
-            const loading = document.getElementById('loading');
-            const errorBox = document.getElementById('error-box');
-
+        // クッキー監視によるダウンロード検知
+        document.getElementById('convert-form').onsubmit = function() {
+            if(fileInput.files.length === 0) { alert("ファイルを選択してください"); return false; }
+            
+            document.cookie = "download_started=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
             btn.disabled = true;
             loading.style.display = 'block';
-            errorBox.style.display = 'none';
 
-            const formData = new FormData();
-            for(let f of fileInput.files) formData.append('file', f);
-            formData.append('password', document.getElementById('password').value);
-            formData.append('dpi', document.getElementById('dpi').value);
-            if(document.getElementById('transparent').checked) formData.append('transparent', 'on');
-
-            try {
-                const response = await fetch('/convert', { method: 'POST', body: formData });
-                
-                // HTMLエラーが返ってきた場合のハンドリング
-                const contentType = response.headers.get("content-type");
-                if (contentType && contentType.indexOf("application/json") === -1) {
-                    throw new Error("サーバーが応答しませんでした。ファイルサイズを減らして再試行してください。");
+            const timer = setInterval(() => {
+                if (document.cookie.includes('download_started')) {
+                    clearInterval(timer);
+                    loading.innerText = "✅ 完了しました";
+                    setTimeout(() => {
+                        loading.style.display = 'none';
+                        btn.disabled = false;
+                        loading.innerText = "🚀 サーバーで画像を生成中...";
+                    }, 3000);
                 }
-
-                const resData = await response.json().catch(() => ({}));
-                
-                if (!response.ok) {
-                    throw new Error(resData.error || "エラーが発生しました");
-                }
-                
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = "materials.zip";
-                a.click();
-            } catch (err) {
-                errorBox.innerText = `⚠️ ${err.message}`;
-                errorBox.style.display = 'block';
-            } finally {
-                btn.disabled = false;
-                loading.style.display = 'none';
-            }
+            }, 500);
+            return true;
         };
     </script>
 </body>
