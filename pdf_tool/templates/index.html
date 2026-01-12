@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-     <!-- Google tag (gtag.js) -->
+      <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -18,44 +18,31 @@
         body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         .container { background: var(--card); padding: 2.5rem; border-radius: 1.5rem; width: 100%; max-width: 440px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
         h1 { font-size: 1.6rem; color: var(--accent); margin: 0 0 1rem 0; }
-        
         .guideline { font-size: 0.85rem; text-align: left; background: rgba(255,255,255,0.05); padding: 1.2rem; border-radius: 1rem; margin-bottom: 1.5rem; border-left: 4px solid var(--accent); }
-        .guideline ul { margin: 0.5rem 0 0 0; padding-left: 1.2rem; opacity: 0.8; }
-
         .drop-zone { border: 2px dashed #475569; padding: 3rem 1rem; border-radius: 1rem; cursor: pointer; transition: 0.3s; margin-bottom: 1rem; }
         .drop-zone.drag-over { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
-        #drop-text { font-weight: bold; font-size: 0.95rem; }
-        .ready-status { color: var(--success); }
-
         .option-group { background: rgba(0,0,0,0.2); padding: 1.2rem; border-radius: 1rem; text-align: left; margin-bottom: 1rem; }
-        label { display: block; font-size: 0.75rem; font-weight: bold; color: #94a3b8; margin-bottom: 0.5rem; }
         select, button { width: 100%; padding: 0.9rem; border-radius: 0.6rem; border: none; font-size: 1rem; outline: none; }
-        select { background: #334155; color: white; margin-bottom: 1rem; cursor: pointer; }
-        
-        button { background: var(--accent); color: var(--bg); font-weight: bold; cursor: pointer; transition: 0.2s; }
-        button:hover { background: #7dd3fc; }
+        select { background: #334155; color: white; margin-bottom: 1rem; }
+        button { background: var(--accent); color: var(--bg); font-weight: bold; cursor: pointer; }
         button:disabled { background: #475569; opacity: 0.5; cursor: not-allowed; }
-
-        #error-message { display: none; background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 1rem; border-radius: 0.6rem; border: 1px solid var(--danger); font-size: 0.85rem; margin-bottom: 1rem; text-align: left; line-height: 1.5; }
+        #error-message { display: none; background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 1rem; border-radius: 0.6rem; border: 1px solid var(--danger); font-size: 0.85rem; margin-bottom: 1rem; text-align: left; }
         #loading { display: none; color: var(--accent); margin-top: 1rem; font-weight: bold; }
-        #success-msg { display: none; color: var(--success); margin-top: 1rem; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Material Studio</h1>
-        
         <div class="guideline">
-            <strong>🚀 素材一括生成ルール</strong>
-            <ul>
-                <li>合計<strong>20ファイルまで</strong>同時変換可能</li>
-                <li>1PDFにつき<strong>最初の15ページ</strong>を画像化</li>
-                <li>ZIP内のフォルダ構造を維持します</li>
+            <strong>🚀 高負荷処理ルール（Render無料枠）</strong>
+            <ul style="margin-top:5px; padding-left:20px; opacity:0.8;">
+                <li>一度に最大<strong>5〜10ファイル</strong>を推奨</li>
+                <li>300DPI時は処理に数分かかります</li>
+                <li>各PDF 最初の15ページまで変換</li>
             </ul>
         </div>
 
         <div id="error-message"></div>
-        <div id="success-msg">✅ 変換完了！ダウンロードを開始します</div>
         
         <form id="convert-form">
             <div class="drop-zone" id="drop-zone">
@@ -64,20 +51,20 @@
             </div>
 
             <div class="option-group">
-                <label>出力画質設定</label>
+                <label style="font-size:0.75rem; color:#94a3b8;">画質設定</label>
                 <select id="dpi">
-                    <option value="150" selected>150 DPI (標準サイズ - 推奨)</option>
-                    <option value="300">300 DPI (高品質・4K用)</option>
+                    <option value="150" selected>150 DPI (標準・安定)</option>
+                    <option value="300">300 DPI (高品質・高負荷)</option>
                 </select>
                 <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.9rem;">
-                    <input type="checkbox" id="transparent" checked style="width:18px; height:18px; accent-color:var(--accent);">
-                    <span>背景を透明にする (透過PNG)</span>
+                    <input type="checkbox" id="transparent" checked>
+                    <span>背景を透明にする</span>
                 </label>
             </div>
             
             <button type="submit" id="submit-btn">変換を開始する</button>
         </form>
-        <div id="loading">⌛ サーバーで変換処理中...<br><small style="font-weight:normal; opacity:0.8;">※15ページ制限を適用しています</small></div>
+        <div id="loading">⌛ 変換中... ブラウザを閉じずにお待ちください</div>
     </div>
 
     <script>
@@ -87,83 +74,44 @@
         const btn = document.getElementById('submit-btn');
         const loading = document.getElementById('loading');
         const errorBox = document.getElementById('error-message');
-        const successMsg = document.getElementById('success-msg');
 
-        function updateUIState(state, count = 0) {
-            errorBox.style.display = 'none';
-            successMsg.style.display = 'none';
-            if (state === 'scanning') {
-                dropText.innerHTML = "🔍 ファイルをスキャン中...";
-                btn.disabled = true;
-            } else if (state === 'ready') {
-                dropText.innerHTML = `<span class="ready-status">✅ ${count}件の準備ができました</span>`;
-                btn.disabled = false;
-            } else if (state === 'reset') {
-                dropText.innerHTML = "PDF または ZIP をドロップ";
-                btn.disabled = false;
-            }
-        }
-
-        function showErrorUI(msg) {
-            errorBox.innerText = `⚠️ ${msg}`;
-            errorBox.style.display = 'block';
-            loading.style.display = 'none';
-            btn.disabled = false;
-        }
-
-        function handleFiles(files) {
-            const fileList = Array.from(files);
-            if (fileList.length === 0) return;
-            updateUIState('scanning');
-            setTimeout(() => {
-                const validFiles = fileList.filter(f => f.name.toLowerCase().endsWith('.pdf') || f.name.toLowerCase().endsWith('.zip'));
-                if (validFiles.length === 0) {
-                    showErrorUI("PDF または ZIP ファイルを選択してください。");
-                    updateUIState('reset');
-                } else if (validFiles.length > 20) {
-                    showErrorUI("一度に処理できるのは20ファイルまでです。");
-                    updateUIState('reset');
-                } else {
-                    updateUIState('ready', validFiles.length);
-                }
-            }, 800);
-        }
-
-        ['dragover'].forEach(n => dropZone.addEventListener(n, e => { e.preventDefault(); dropZone.classList.add('drag-over'); }));
-        ['dragleave', 'drop'].forEach(n => dropZone.addEventListener(n, () => dropZone.classList.remove('drag-over')));
-        dropZone.addEventListener('drop', e => { e.preventDefault(); fileInput.files = e.dataTransfer.files; handleFiles(fileInput.files); });
-        dropZone.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+        dropZone.onclick = () => fileInput.click();
+        fileInput.onchange = () => { if(fileInput.files.length > 0) dropText.innerText = `${fileInput.files.length}件のファイルを選択中`; };
 
         document.getElementById('convert-form').onsubmit = async function(e) {
             e.preventDefault();
-            
-            // --- 改善点: ファイル未選択時のバリデーション ---
             if(fileInput.files.length === 0) {
-                showErrorUI("ファイルが選択されていません。ドロップするかクリックして選択してください。");
+                alert("ファイルを選択してください");
                 return;
             }
 
-            errorBox.style.display = 'none';
-            successMsg.style.display = 'none';
+            // --- 負荷軽減のためのフロント側ガード ---
+            const dpi = document.getElementById('dpi').value;
+            if (dpi == "300" && fileInput.files.length > 10) {
+                errorBox.innerText = "⚠️ 300DPI設定では、サーバー保護のため一度に10ファイルまでとしてください。";
+                errorBox.style.display = 'block';
+                return;
+            }
+
             btn.disabled = true;
             loading.style.display = 'block';
+            errorBox.style.display = 'none';
 
             const formData = new FormData();
             for(let f of fileInput.files) { formData.append('file', f); }
-            formData.append('dpi', document.getElementById('dpi').value);
+            formData.append('dpi', dpi);
             if(document.getElementById('transparent').checked) formData.append('transparent', 'on');
 
             try {
                 const response = await fetch('/convert', { method: 'POST', body: formData });
                 
                 if (!response.ok) {
-                    let errorMsg = "サーバーエラーが発生しました";
+                    let errorMsg = "サーバーエラー";
                     try {
                         const resData = await response.json();
                         errorMsg = resData.error;
-                    } catch (jsonErr) {
-                        errorMsg = "サーバーが停止しました。画質を下げるかファイル数を減らしてください。";
+                    } catch (e) {
+                        errorMsg = "サーバーが負荷に耐えられず停止しました。画質を下げるか、ファイル数を減らして再度お試しください。";
                     }
                     throw new Error(errorMsg);
                 }
@@ -172,22 +120,19 @@
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = blob.type.includes('zip') ? "materials.zip" : "material.png";
+                a.download = "converted_materials.zip";
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
                 
-                loading.style.display = 'none';
-                successMsg.style.display = 'block';
-                setTimeout(() => { 
-                    successMsg.style.display = 'none'; 
-                    btn.disabled = false; 
-                    updateUIState('reset');
-                    fileInput.value = "";
-                }, 4000);
+                loading.innerText = "✅ 完了しました！";
+                setTimeout(() => { loading.style.display = 'none'; btn.disabled = false; }, 3000);
 
             } catch (err) {
-                showErrorUI(err.message);
+                errorBox.innerText = `⚠️ ${err.message}`;
+                errorBox.style.display = 'block';
+                loading.style.display = 'none';
+                btn.disabled = false;
             }
         };
     </script>
