@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-           <!-- Google tag (gtag.js) -->
+            <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -11,99 +11,103 @@
   gtag('config', 'G-MTB190WE2E');
 </script>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Material Studio | PDF to PNG</title>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; }
-        body { background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .container { background: var(--card); padding: 2.5rem; border-radius: 1.5rem; width: 400px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
-        .drop-zone { border: 2px dashed #475569; padding: 3rem 1rem; border-radius: 1rem; cursor: pointer; transition: 0.3s; margin-bottom: 1.5rem; background: rgba(255,255,255,0.02); }
-        .drop-zone.drag-over { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
-        .option-group { background: rgba(0,0,0,0.2); padding: 1.2rem; border-radius: 0.8rem; text-align: left; margin-bottom: 1.5rem; }
-        label { display: block; font-size: 0.75rem; font-weight: bold; color: #94a3b8; margin-bottom: 0.5rem; }
-        select, button { width: 100%; padding: 0.8rem; border-radius: 0.5rem; border: none; font-size: 1rem; }
-        select { background: #334155; color: white; margin-bottom: 1rem; }
-        .check-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
-        .check-row input { width: 18px; height: 18px; accent-color: var(--accent); }
-        button { background: var(--accent); color: var(--bg); font-weight: bold; cursor: pointer; transition: 0.2s; }
-        button:hover { background: #7dd3fc; }
-        #loading { display: none; color: var(--accent); margin-top: 1.5rem; font-weight: bold; animation: pulse 1.5s infinite; }
+        :root {
+            --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc;
+        }
+        body {
+            background-color: var(--bg); color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0;
+        }
+        .container {
+            background: var(--card); padding: 2rem; border-radius: 1.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            width: 100%; max-width: 400px; text-align: center;
+        }
+        h1 { font-size: 1.5rem; color: var(--accent); margin-bottom: 0.5rem; }
+        .description { font-size: 0.85rem; opacity: 0.7; margin-bottom: 2rem; }
+        
+        .upload-zone {
+            border: 2px dashed #475569; padding: 1.5rem; border-radius: 1rem; margin-bottom: 1.5rem;
+            transition: border-color 0.3s;
+        }
+        .upload-zone:hover { border-color: var(--accent); }
+        
+        .option-group {
+            background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.75rem;
+            margin-bottom: 1.5rem; text-align: left;
+        }
+        label { display: block; font-size: 0.75rem; font-weight: bold; margin-bottom: 0.5rem; opacity: 0.9; }
+        
+        select {
+            width: 100%; padding: 0.6rem; background: #334155; color: white;
+            border: 1px solid #475569; border-radius: 0.4rem; margin-bottom: 1rem;
+        }
+        
+        .checkbox-container { display: flex; align-items: center; cursor: pointer; gap: 0.5rem; }
+        .checkbox-container input { width: 1.2rem; height: 1.2rem; cursor: pointer; }
+        
+        button {
+            width: 100%; padding: 1rem; background: var(--accent); color: var(--bg);
+            border: none; border-radius: 0.75rem; font-weight: bold; font-size: 1rem;
+            cursor: pointer; transition: all 0.2s;
+        }
+        button:hover { background: #7dd3fc; transform: translateY(-2px); }
+        button:disabled { background: #475569; cursor: not-allowed; transform: none; }
+        
+        #loading { display: none; margin-top: 1rem; font-size: 0.8rem; color: var(--accent); animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 style="color: var(--accent); margin-top:0;">Material Studio</h1>
-        <p style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 2rem;">PDF/ZIPを投入して透過PNGへ変換<br>ZIP内のフォルダ構造も完全に維持します</p>
+        <h1>Video Material Studio</h1>
+        <p class="description">PDFを「背景透過PNG」へ瞬時に一括変換。<br>動画編集ソフトにそのまま重ねられます。</p>
         
         <form id="convert-form" method="POST" enctype="multipart/form-data">
-            <div class="drop-zone" id="drop-zone">
-                <p id="drop-text" style="margin:0;">PDF または ZIP をドロップ</p>
-                <input type="file" name="file" id="file-input" accept=".pdf,.zip" multiple style="display:none">
+            <div class="upload-zone">
+                <input type="file" name="file" accept=".pdf" required>
             </div>
-
+            
             <div class="option-group">
-                <label>解像度（DPI）</label>
+                <label for="dpi">書き出し画質（解像度）</label>
                 <select name="dpi" id="dpi">
-                    <option value="150" selected>150 DPI (標準)</option>
-                    <option value="300">300 DPI (高品質4K)</option>
-                    <option value="72">72 DPI (軽量)</option>
+                    <option value="72">72 DPI (軽量・プレビュー用)</option>
+                    <option value="150" selected>150 DPI (標準・YouTube用)</option>
+                    <option value="300">300 DPI (高品質・4K動画用)</option>
                 </select>
                 
-                <label class="check-row">
-                    <input type="checkbox" name="transparent" checked id="trans-check">
-                    <span style="color: white; font-size: 0.9rem;">背景を透明にする</span>
+                <label class="checkbox-container">
+                    <input type="checkbox" name="transparent" id="transparent">
+                    <span>背景を透明にする (RGBA)</span>
                 </label>
             </div>
             
-            <button type="submit" id="submit-btn">変換を開始</button>
+            <button type="submit" id="submit-btn">素材を生成してZIP保存</button>
         </form>
-        <div id="loading">🚀 サーバーで画像を生成中...</div>
+        
+        <div id="loading">🚀 変換中... サーバーで画像を生成しています。</div>
     </div>
 
     <script>
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file-input');
-        const dropText = document.getElementById('drop-text');
-        const btn = document.getElementById('submit-btn');
-        const loading = document.getElementById('loading');
-
-        // ドラッグ＆ドロップ制御
-        ['dragenter', 'dragover'].forEach(n => dropZone.addEventListener(n, e => { e.preventDefault(); dropZone.classList.add('drag-over'); }));
-        ['dragleave', 'drop'].forEach(n => dropZone.addEventListener(n, e => { e.preventDefault(); dropZone.classList.remove('drag-over'); }));
+        // 設定をLocalStorageに保存してリピーターの利便性を向上
+        const dpiSelect = document.getElementById('dpi');
+        const transCheck = document.getElementById('transparent');
         
-        dropZone.addEventListener('drop', e => {
-            const files = Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith('.pdf') || f.name.toLowerCase().endsWith('.zip'));
-            if(files.length > 0) {
-                fileInput.files = e.dataTransfer.files;
-                dropText.innerText = `${files.length}件のファイルを準備完了`;
-                dropText.style.color = "#38bdf8";
-            }
-        });
+        window.onload = () => {
+            if(localStorage.getItem('dpi')) dpiSelect.value = localStorage.getItem('dpi');
+            if(localStorage.getItem('trans') === 'true') transCheck.checked = true;
+        }
 
-        dropZone.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', () => {
-            if(fileInput.files.length > 0) dropText.innerText = `${fileInput.files.length}件をセット済み`;
-        });
-
-        // クッキー監視によるダウンロード検知
         document.getElementById('convert-form').onsubmit = function() {
-            if(fileInput.files.length === 0) { alert("ファイルを選択してください"); return false; }
+            localStorage.setItem('dpi', dpiSelect.value);
+            localStorage.setItem('trans', transCheck.checked);
             
-            document.cookie = "download_started=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-            btn.disabled = true;
-            loading.style.display = 'block';
-
-            const timer = setInterval(() => {
-                if (document.cookie.includes('download_started')) {
-                    clearInterval(timer);
-                    loading.innerText = "✅ 完了しました";
-                    setTimeout(() => {
-                        loading.style.display = 'none';
-                        btn.disabled = false;
-                        loading.innerText = "🚀 サーバーで画像を生成中...";
-                    }, 3000);
-                }
-            }, 500);
+            document.getElementById('submit-btn').disabled = true;
+            document.getElementById('loading').style.display = 'block';
             return true;
         };
     </script>
