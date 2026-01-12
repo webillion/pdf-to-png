@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-         <!-- Google tag (gtag.js) -->
+          <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -64,7 +64,7 @@
 
         function updateFiles(files) {
             const pass = document.getElementById('password').value;
-            // パスワードが一致しない場合のみ枚数チェック
+            // サーバーと同じパスワードを設定してください
             if (pass !== "admin1234" && pass !== "pro_user_77" && files.length > 3) {
                 alert("無料版は1回3枚までです。");
                 fileInput.value = "";
@@ -105,19 +105,18 @@
             try {
                 const response = await fetch('/convert', { method: 'POST', body: formData });
                 
-                // HTMLエラー画面が返ってきていないかチェック
+                // HTMLエラーが返ってきた場合のハンドリング
                 const contentType = response.headers.get("content-type");
                 if (contentType && contentType.indexOf("application/json") === -1) {
-                    throw new Error("サーバーでエラーが発生しました。時間を置いて試すか、ファイル数を減らしてください。");
+                    throw new Error("サーバーが応答しませんでした。ファイルサイズを減らして再試行してください。");
                 }
 
                 const resData = await response.json().catch(() => ({}));
                 
                 if (!response.ok) {
-                    throw new Error(resData.error || "不明なエラーが発生しました");
+                    throw new Error(resData.error || "エラーが発生しました");
                 }
                 
-                // 成功時ダウンロード
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a'); a.href = url; a.download = "materials.zip";
