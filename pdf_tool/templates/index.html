@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-   <!-- Google tag (gtag.js) -->
+    <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -19,9 +19,11 @@
         .container { background: var(--card); padding: 2.5rem; border-radius: 1.5rem; width: 100%; max-width: 440px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
         h1 { font-size: 1.6rem; color: var(--accent); margin: 0 0 1rem 0; }
         
+        /* ガイドライン表示 */
         .guideline { font-size: 0.85rem; text-align: left; background: rgba(255,255,255,0.05); padding: 1.2rem; border-radius: 1rem; margin-bottom: 1.5rem; border-left: 4px solid var(--accent); }
         .guideline ul { margin: 0.5rem 0 0 0; padding-left: 1.2rem; opacity: 0.8; }
-        
+        .guideline li { margin-bottom: 0.3rem; }
+
         .drop-zone { border: 2px dashed #475569; padding: 3rem 1rem; border-radius: 1rem; cursor: pointer; transition: 0.3s; margin-bottom: 1rem; }
         .drop-zone.drag-over { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
         #drop-text { font-weight: bold; font-size: 0.95rem; }
@@ -29,15 +31,17 @@
 
         .option-group { background: rgba(0,0,0,0.2); padding: 1.2rem; border-radius: 1rem; text-align: left; margin-bottom: 1rem; }
         label { display: block; font-size: 0.75rem; font-weight: bold; color: #94a3b8; margin-bottom: 0.5rem; }
-        select, button { width: 100%; padding: 0.9rem; border-radius: 0.6rem; border: none; font-size: 1rem; }
-        select { background: #334155; color: white; margin-bottom: 1rem; }
+        select, button { width: 100%; padding: 0.9rem; border-radius: 0.6rem; border: none; font-size: 1rem; outline: none; }
+        select { background: #334155; color: white; margin-bottom: 1rem; cursor: pointer; }
         
         button { background: var(--accent); color: var(--bg); font-weight: bold; cursor: pointer; transition: 0.2s; }
         button:hover { background: #7dd3fc; }
         button:disabled { background: #475569; opacity: 0.5; cursor: not-allowed; }
 
-        #error-message { display: none; background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 1rem; border-radius: 0.6rem; border: 1px solid var(--danger); font-size: 0.85rem; margin-bottom: 1rem; text-align: left; }
+        /* メッセージ表示エリア */
+        #error-message { display: none; background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 1rem; border-radius: 0.6rem; border: 1px solid var(--danger); font-size: 0.85rem; margin-bottom: 1rem; text-align: left; line-height: 1.5; }
         #loading { display: none; color: var(--accent); margin-top: 1rem; font-weight: bold; }
+        #success-msg { display: none; color: var(--success); margin-top: 1rem; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -47,13 +51,14 @@
         <div class="guideline">
             <strong>🚀 素材一括生成ルール</strong>
             <ul>
-                <li>合計<strong>20個のPDF</strong>まで同時変換可能</li>
-                <li>1PDFにつき<strong>最大15ページ</strong>を画像化</li>
-                <li>ZIP内のフォルダ構成をそのまま維持</li>
+                <li>PDFは合計<strong>20ファイルまで</strong>同時変換可能</li>
+                <li>1つのPDFにつき<strong>最初の15ページ</strong>を画像化</li>
+                <li>ZIP内のフォルダ構造を維持して変換します</li>
             </ul>
         </div>
 
         <div id="error-message"></div>
+        <div id="success-msg">✅ 変換完了！ダウンロードを開始します</div>
         
         <form id="convert-form">
             <div class="drop-zone" id="drop-zone">
@@ -62,10 +67,10 @@
             </div>
 
             <div class="option-group">
-                <label>出力画質</label>
+                <label>出力画質設定</label>
                 <select id="dpi">
-                    <option value="150" selected>150 DPI (標準サイズ)</option>
-                    <option value="300">300 DPI (高品質・4K用)</option>
+                    <option value="150" selected>150 DPI (標準サイズ - 推奨)</option>
+                    <option value="300">300 DPI (高品質・4K用 ※負荷大)</option>
                 </select>
                 <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.9rem;">
                     <input type="checkbox" id="transparent" checked style="width:18px; height:18px; accent-color:var(--accent);">
@@ -75,7 +80,7 @@
             
             <button type="submit" id="submit-btn">変換を開始する</button>
         </form>
-        <div id="loading">⌛ サーバーで変換処理中...</div>
+        <div id="loading">⌛ サーバーで変換処理中...<br><small style="font-weight:normal; opacity:0.8;">※15ページ制限を適用しています</small></div>
     </div>
 
     <script>
@@ -85,48 +90,58 @@
         const btn = document.getElementById('submit-btn');
         const loading = document.getElementById('loading');
         const errorBox = document.getElementById('error-message');
+        const successMsg = document.getElementById('success-msg');
 
-        function updateUI(status, count = 0) {
+        // UIの状態を更新する関数
+        function updateUIState(state, count = 0) {
             errorBox.style.display = 'none';
-            if (status === 'scanning') {
+            successMsg.style.display = 'none';
+            
+            if (state === 'scanning') {
                 dropText.innerHTML = "🔍 ファイルをスキャン中...";
-                dropText.className = "";
                 btn.disabled = true;
-            } else if (status === 'ready') {
+            } else if (state === 'ready') {
                 dropText.innerHTML = `<span class="ready-status">✅ ${count}件の準備ができました</span>`;
                 btn.disabled = false;
-            } else if (status === 'reset') {
+            } else if (state === 'reset') {
                 dropText.innerHTML = "PDF または ZIP をドロップ";
-                dropText.className = "";
                 btn.disabled = false;
             }
         }
 
+        // ファイル選択時のバリデーション
         function handleFiles(files) {
             const fileList = Array.from(files);
             if (fileList.length === 0) return;
 
-            // スキャン中を表示
-            updateUI('scanning');
+            updateUIState('scanning');
 
-            // 擬似的なスキャン待ち（実際にはファイルリストの検証）
+            // 0.8秒のスキャン演出
             setTimeout(() => {
-                const filtered = fileList.filter(f => f.name.toLowerCase().endsWith('.pdf') || f.name.toLowerCase().endsWith('.zip'));
-                if (filtered.length > 20) {
-                    errorBox.innerText = "⚠️ 一度に処理できるのは20ファイルまでです。";
-                    errorBox.style.display = 'block';
-                    updateUI('reset');
+                const validFiles = fileList.filter(f => f.name.toLowerCase().endsWith('.pdf') || f.name.toLowerCase().endsWith('.zip'));
+                
+                if (validFiles.length === 0) {
+                    showErrorUI("PDF または ZIP ファイルを選択してください。");
+                    updateUIState('reset');
                     fileInput.value = "";
-                } else if (filtered.length === 0) {
-                    errorBox.innerText = "⚠️ PDF または ZIP を選択してください。";
-                    errorBox.style.display = 'block';
-                    updateUI('reset');
+                } else if (validFiles.length > 20) {
+                    showErrorUI("一度に処理できるのは合計20ファイルまでです。");
+                    updateUIState('reset');
+                    fileInput.value = "";
                 } else {
-                    updateUI('ready', filtered.length);
+                    updateUIState('ready', validFiles.length);
                 }
-            }, 800); // 0.8秒スキャン中を見せる
+            }, 800);
         }
 
+        function showErrorUI(msg) {
+            errorBox.innerText = `⚠️ ${msg}`;
+            errorBox.style.display = 'block';
+            loading.style.display = 'none';
+            btn.disabled = false;
+        }
+
+        // イベントリスナー
         ['dragover'].forEach(n => dropZone.addEventListener(n, e => { e.preventDefault(); dropZone.classList.add('drag-over'); }));
         ['dragleave', 'drop'].forEach(n => dropZone.addEventListener(n, () => dropZone.classList.remove('drag-over')));
         
@@ -138,13 +153,15 @@
         dropZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', () => handleFiles(fileInput.files));
 
+        // フォーム送信（非同期通信）
         document.getElementById('convert-form').onsubmit = async function(e) {
             e.preventDefault();
             if(fileInput.files.length === 0) return;
 
+            errorBox.style.display = 'none';
+            successMsg.style.display = 'none';
             btn.disabled = true;
             loading.style.display = 'block';
-            errorBox.style.display = 'none';
 
             const formData = new FormData();
             for(let f of fileInput.files) { formData.append('file', f); }
@@ -154,11 +171,20 @@
             try {
                 const response = await fetch('/convert', { method: 'POST', body: formData });
                 
+                // --- JSON解析の二段構えハンドリング ---
                 if (!response.ok) {
-                    const resData = await response.json();
-                    throw new Error(resData.error || "変換に失敗しました");
+                    let errorMsg = "サーバーエラーが発生しました";
+                    try {
+                        const resData = await response.json();
+                        errorMsg = resData.error;
+                    } catch (jsonErr) {
+                        // サーバークラッシュ（JSONが空）の場合にここへ来る
+                        errorMsg = "サーバーが負荷に耐えられず停止しました。画質設定(DPI)を150にするか、ファイル数を減らして再度お試しください。";
+                    }
+                    throw new Error(errorMsg);
                 }
 
+                // ダウンロード処理
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -168,18 +194,16 @@
                 a.click();
                 a.remove();
                 
-                loading.innerHTML = "✅ ダウンロードを開始しました";
+                loading.style.display = 'none';
+                successMsg.style.display = 'block';
                 setTimeout(() => { 
-                    loading.style.display = 'none'; 
+                    successMsg.style.display = 'none'; 
                     btn.disabled = false; 
-                    updateUI('reset');
-                }, 3000);
+                    updateUIState('reset');
+                }, 4000);
 
             } catch (err) {
-                errorBox.innerText = `⚠️ ${err.message}`;
-                errorBox.style.display = 'block';
-                loading.style.display = 'none';
-                btn.disabled = false;
+                showErrorUI(err.message);
             }
         };
     </script>
