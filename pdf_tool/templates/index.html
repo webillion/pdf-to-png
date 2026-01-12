@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-           <!-- Google tag (gtag.js) -->
+            <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -16,48 +16,45 @@
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; --danger: #ef4444; }
         body { background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 10px; }
-        .container { background: var(--card); padding: 2rem; border-radius: 1.5rem; width: 100%; max-width: 420px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
-        h1 { color: var(--accent); margin: 0 0 0.5rem 0; font-size: 1.8rem; }
-        .limit-info { font-size: 0.8rem; color: #94a3b8; margin-bottom: 1.5rem; border: 1px solid #334155; padding: 5px; border-radius: 5px; }
+        .container { background: var(--card); padding: 2rem; border-radius: 1.5rem; width: 100%; max-width: 420px; box-shadow: 0 25px 50px rgba(0,0,0,0.5); text-align: center; }
         .input-field { background: #334155; border: 1px solid #475569; color: white; padding: 0.8rem; border-radius: 0.6rem; width: 100%; box-sizing: border-box; margin-bottom: 1rem; outline: none; }
         .drop-zone { border: 2px dashed #475569; padding: 2rem 1rem; border-radius: 1rem; cursor: pointer; transition: 0.3s; margin-bottom: 1rem; }
         .drop-zone.drag-over { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
         button { width: 100%; padding: 0.9rem; border-radius: 0.6rem; border: none; font-size: 1rem; background: var(--accent); color: var(--bg); font-weight: bold; cursor: pointer; }
-        button:disabled { background: #475569; cursor: not-allowed; }
-        #error-box { display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); color: var(--danger); padding: 1rem; border-radius: 0.6rem; margin-bottom: 1rem; font-size: 0.85rem; text-align: left; line-height: 1.4; }
-        .buy-btn { display: none; background: #f43f5e; color: white; text-decoration: none; padding: 0.8rem; border-radius: 0.6rem; margin-bottom: 1rem; font-weight: bold; border: 2px solid white; }
+        button:disabled { background: #475569; cursor: wait; }
+        #error-box { display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); color: var(--danger); padding: 1rem; border-radius: 0.6rem; margin-bottom: 1rem; text-align: left; font-size: 0.85rem; }
+        .buy-btn { display: none; background: #f43f5e; color: white; text-decoration: none; padding: 0.8rem; border-radius: 0.6rem; margin-bottom: 1rem; font-weight: bold; display: block; border: 2px solid white; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Material Studio</h1>
-        <div class="limit-info">無料：1日3ファイルまで (Proは無制限)</div>
+        <h1 style="color:var(--accent); margin-top:0;">Material Studio</h1>
+        <p style="font-size:0.8rem; opacity:0.7;">無料枠：1日3ファイルまで</p>
 
         <div id="error-box"></div>
-        <a href="あなたのBOOTHリンク" id="buy-btn" class="buy-btn" target="_blank">🎫 パスワードを購入して無制限にする</a>
+        <a href="あなたのBOOTHリンク" id="buy-btn" class="buy-btn" style="display:none">🎫 パスワードを購入する</a>
 
         <form id="convert-form">
-            <input type="password" id="password" class="input-field" placeholder="パスワード（お持ちの方）">
+            <input type="password" id="password" class="input-field" placeholder="パスワード（Pro・開発者用）">
             
             <div class="drop-zone" id="drop-zone">
-                <p id="drop-text" style="pointer-events: none;">PDFをドロップ (最大3ファイル)</p>
+                <p id="drop-text" style="pointer-events: none;">PDFをドロップ<br><small>パスワードなしは最大3つまで</small></p>
                 <input type="file" id="file-input" accept=".pdf" multiple style="display:none">
             </div>
 
             <div style="text-align:left; margin-bottom:1rem; font-size:0.9rem;">
-                <label style="color:#94a3b8; font-size:0.75rem;">画質</label>
-                <select id="dpi" class="input-field" style="margin-bottom:0.5rem;">
+                <select id="dpi" class="input-field">
                     <option value="150">150 DPI (標準)</option>
                     <option value="300" selected>300 DPI (最高品質)</option>
                 </select>
                 <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                    <input type="checkbox" id="transparent" checked style="width:18px; height:18px;"> <span>背景を透明にする</span>
+                    <input type="checkbox" id="transparent" checked> 背景を透明にする
                 </label>
             </div>
             
-            <button type="submit" id="submit-btn">変換を開始する</button>
+            <button type="submit" id="submit-btn">変換してダウンロード</button>
         </form>
-        <div id="loading" style="display:none; color:var(--accent); margin-top:1rem; font-weight:bold;">⌛ 素材を生成中...</div>
+        <div id="loading" style="display:none; color:var(--accent); margin-top:1rem; font-weight:bold;">⌛ 変換中...（最大1分ほど）</div>
     </div>
 
     <script>
@@ -66,14 +63,16 @@
         const dropText = document.getElementById('drop-text');
         const errorBox = document.getElementById('error-box');
         const buyBtn = document.getElementById('buy-btn');
-        const btn = document.getElementById('submit-btn');
 
-        // ファイル数チェック関数
-        function checkFiles(files) {
+        // パスワード確認用（ここにもサーバーと同じパスワードを入れておくと、送信前にはじけます）
+        function isPro() {
             const pass = document.getElementById('password').value;
-            // 開発者用簡易チェック（Proキーが入力されていればパス）
-            if (pass !== "your_secret_password" && files.length > 3) {
-                errorBox.innerHTML = "⚠️ <strong>エラー: ファイル数が多すぎます。</strong><br>無料版は一度に3ファイルまでです。Pro版パスワードを入力してください。";
+            return (pass === "dev_admin_key" || pass === "user_pro_key");
+        }
+
+        function validateFiles(files) {
+            if (!isPro() && files.length > 3) {
+                errorBox.innerText = "⚠️ 無料版は一度に3ファイルまでです。パスワードを入力してください。";
                 errorBox.style.display = 'block';
                 return false;
             }
@@ -86,16 +85,16 @@
         
         dropZone.addEventListener('drop', e => {
             e.preventDefault();
-            if (checkFiles(e.dataTransfer.files)) {
+            if (validateFiles(e.dataTransfer.files)) {
                 fileInput.files = e.dataTransfer.files;
-                dropText.innerText = `${fileInput.files.length}件のPDFを選択中`;
+                dropText.innerText = `${fileInput.files.length}件選択中`;
             }
         });
 
         dropZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', () => {
-            if (checkFiles(fileInput.files)) {
-                dropText.innerText = `${fileInput.files.length}件のPDFを選択中`;
+            if (validateFiles(fileInput.files)) {
+                dropText.innerText = `${fileInput.files.length}件選択中`;
             }
         });
 
@@ -103,7 +102,7 @@
             e.preventDefault();
             if (fileInput.files.length === 0) return;
 
-            btn.disabled = true;
+            document.getElementById('submit-btn').disabled = true;
             document.getElementById('loading').style.display = 'block';
             errorBox.style.display = 'none';
             buyBtn.style.display = 'none';
@@ -117,16 +116,10 @@
             try {
                 const response = await fetch('/convert', { method: 'POST', body: formData });
                 
-                // ここでHTMLエラーページをJSONとして読もうとして落ちるのを防ぐ
-                const contentType = response.headers.get("content-type");
                 if (!response.ok) {
-                    if (contentType && contentType.indexOf("application/json") !== -1) {
-                        const resData = await response.json();
-                        if (response.status === 403) buyBtn.style.display = 'block';
-                        throw new Error(resData.error);
-                    } else {
-                        throw new Error("サーバーが過負荷により一時停止しました。画質を下げるか、1枚ずつお試しください。");
-                    }
+                    const resData = await response.json();
+                    if (response.status === 403) buyBtn.style.display = 'block';
+                    throw new Error(resData.error);
                 }
 
                 const blob = await response.blob();
@@ -138,7 +131,7 @@
                 errorBox.innerText = `⚠️ ${err.message}`;
                 errorBox.style.display = 'block';
             } finally {
-                btn.disabled = false;
+                document.getElementById('submit-btn').disabled = false;
                 document.getElementById('loading').style.display = 'none';
             }
         };
