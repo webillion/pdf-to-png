@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <!-- Google tag (gtag.js) -->
+     <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -11,17 +11,41 @@
   gtag('config', 'G-MTB190WE2E');
 </script>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Material Studio Pro</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; }
         body { background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         .container { background: var(--card); padding: 2rem; border-radius: 1.5rem; width: 400px; text-align: center; box-shadow: 0 20px 25px rgba(0,0,0,0.3); }
         .input-field { background: #334155; border: 1px solid #475569; color: white; padding: 0.8rem; border-radius: 0.5rem; width: 100%; margin-bottom: 1rem; box-sizing: border-box; }
-        .drop-zone { border: 2px dashed #475569; padding: 1.5rem; border-radius: 1rem; cursor: pointer; }
-        button { width: 100%; padding: 1rem; border-radius: 0.5rem; border: none; background: var(--accent); color: #0f172a; font-weight: bold; cursor: pointer; }
+        .drop-zone { border: 2px dashed #475569; padding: 1.5rem; border-radius: 1rem; cursor: pointer; transition: 0.2s; }
+        .drop-zone:hover { background: rgba(56, 189, 248, 0.05); border-color: var(--accent); }
+        
+        button { 
+            width: 100%; 
+            padding: 1rem; 
+            border-radius: 0.5rem; 
+            border: none; 
+            background: var(--accent); 
+            color: #0f172a; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: 0.3s;
+        }
+        
+        /* ↓↓↓ ここがボタン無効化のスタイル ↓↓↓ */
+        button:disabled {
+            background-color: #475569; /* グレーにする */
+            color: #94a3b8;
+            cursor: not-allowed; /* 禁止マークにする */
+            opacity: 0.7;
+        }
+        /* ↑↑↑↑↑↑ */
+
         #message-box { display: none; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; font-size: 0.9rem; }
         .error { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; }
         .success { background: rgba(34, 197, 94, 0.2); color: #22c55e; border: 1px solid #22c55e; }
+        #loading { display: none; color: var(--accent); margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -43,12 +67,15 @@
             </div>
             <button type="submit" id="btn">生成開始</button>
         </form>
+        <div id="loading">⌛ 処理中... 画面を閉じないでください</div>
     </div>
 
     <script>
         const form = document.getElementById('convert-form');
         const msgBox = document.getElementById('message-box');
         const fileInput = document.getElementById('file-input');
+        const btn = document.getElementById('btn');
+        const loading = document.getElementById('loading');
 
         fileInput.onchange = () => {
             document.getElementById('file-info').innerText = `${fileInput.files.length}個のファイル`;
@@ -56,7 +83,17 @@
 
         form.onsubmit = async (e) => {
             e.preventDefault();
+            if (fileInput.files.length === 0) {
+                alert("ファイルを選択してください");
+                return;
+            }
+
+            // --- ボタン無効化処理 ---
+            btn.disabled = true;       // ボタンを押せなくする
+            btn.innerText = "送信中..."; // テキストを変える
+            loading.style.display = 'block';
             msgBox.style.display = 'none';
+            // ---------------------
             
             const pwd = document.getElementById('password').value;
             const formData = new FormData();
@@ -76,9 +113,9 @@
                     return;
                 }
 
-                if (!response.ok) throw new Error("処理に失敗しました");
+                if (!response.ok) throw new Error("処理に失敗しました。ファイルが大きすぎる可能性があります。");
 
-                // プロユーザー用メッセージ表示
+                // プロユーザー用メッセージ
                 if (pwd === "admin1234" || pwd === "pro_user_77") {
                     msgBox.className = 'success';
                     msgBox.innerText = "解除されました。何回でもお使いください。";
@@ -96,6 +133,12 @@
                 msgBox.className = 'error';
                 msgBox.innerText = err.message;
                 msgBox.style.display = 'block';
+            } finally {
+                // --- 処理終了後の復帰 ---
+                btn.disabled = false;     // ボタンを復活させる
+                btn.innerText = "生成開始"; // テキストを戻す
+                loading.style.display = 'none';
+                // ---------------------
             }
         };
     </script>
