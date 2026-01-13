@@ -4,33 +4,30 @@ from pdf2image import convert_from_path, pdfinfo_from_path
 from PIL import Image, ImageChops
 
 app = Flask(__name__)
-# Renderの一時領域（必ず/tmpを使用）
 UPLOAD_FOLDER = '/tmp'
 
+# --- 認証・制限設定 ---
+ADMIN_PASS = "admin1234"      # 開発者用
+PRO_PASS = "pro_user_77"     # 一般ユーザー用
+FREE_LIMIT = 3                # 無料枠（ファイル数）
+
+# IPごとの利用回数を記録する辞書（本番運用ではデータベースを推奨）
+usage_tracker = {}
+
 def force_cleanup():
-    """メモリをOSへ即座に返却し、SIGKILLを回避する"""
     gc.collect()
     time.sleep(0.1)
 
 def make_transparent_perfect(image):
-    """
-    ピクセルループを一切使わず、ベクトル演算で透過。
-    300DPIの大容量データでもメモリをほぼ使いません。
-    """
+    """PNG展開後の透過処理（低メモリ演算）"""
     img = image.convert("RGBA")
     r, g, b, a = img.split()
-    
-    # 明るさ245以上の白をマスク化（C言語レベルの高速処理）
     mask = r.point(lambda x: 255 if x > 245 else 0)
     mask = ImageChops.multiply(mask, g.point(lambda x: 255 if x > 245 else 0))
     mask = ImageChops.multiply(mask, b.point(lambda x: 255 if x > 245 else 0))
-    
-    # マスクを反転させてアルファチャンネルに適用
     inv_mask = ImageChops.invert(mask)
     new_a = ImageChops.multiply(a, inv_mask)
     img.putalpha(new_a)
-    
-    # 処理済みオブジェクトの削除
     del r, g, b, a, mask, inv_mask, new_a
     return img
 
@@ -42,35 +39,50 @@ def index():
 def convert():
     force_cleanup()
     
-    # パスワード（将来の収益化用）
+    # パスワードの確認
     pwd = request.form.get('password', '')
-    is_pro = (pwd in ["admin1234", "pro_user_77"])
+    is_pro = (pwd in [ADMIN_PASS, PRO_PASS])
     
+    # IPアドレスの取得と制限チェック
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0]
+    
+    if not is_pro:
+        # 無料ユーザーの制限チェック
+        if ip not in usage_tracker:
+            usage_tracker[ip] = 0
+        
+        if usage_tracker[ip] >= FREE_LIMIT:
+            return jsonify({
+                "status": "locked",
+                "error": f"1日の無料枠（{FREE_LIMIT}回）を超えました。継続利用にはパスワードを入力してください。"
+            }), 403
+
     files = request.files.getlist('file')
+    if not files or files[0].filename == '':
+        return jsonify({"error": "ファイルが選択されていません。"}), 400
+
     dpi = int(request.form.get('dpi', 150))
     is_transparent = 'transparent' in request.form
-    
     zip_buffer = io.BytesIO()
-    total_count = 0
+    processed_count = 0
     
     try:
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as master_zip:
             for f in files:
                 if f.filename == '': continue
                 
-                # xref table エラーを防ぐため一時ファイルを完全に書き出す
-                ext = os.path.splitext(f.filename)[1]
-                tmp_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}{ext}")
+                # PDFを一度保存（xref tableエラー回避）
+                tmp_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}.pdf")
                 f.save(tmp_path)
                 
                 try:
-                    # ページ数を取得
+                    # 1. ページ情報を取得
                     info = pdfinfo_from_path(tmp_path)
-                    total_pages = info["Pages"]
                     base_name = os.path.splitext(f.filename)[0]
                     
-                    for p in range(1, total_pages + 1):
-                        # 1ページずつCairoエンジンで処理。これが「落ちない」ための最重要ポイント。
+                    for p in range(1, info["Pages"] + 1):
+                        # 2. 1ページだけ読み込み（メモリ節約）
+                        # 3. 裏側でPNG形式(RGBA)に展開
                         pages = convert_from_path(
                             tmp_path, dpi=dpi, first_page=p, last_page=p,
                             use_pdftocairo=True, thread_count=1
@@ -78,39 +90,36 @@ def convert():
                         if not pages: continue
                         
                         img = pages[0]
+                        
+                        # 4. 白を抜く計算
                         if is_transparent:
                             img = make_transparent_perfect(img)
                         
-                        # PNGとしてZIPへ格納
+                        # 5. PNGとしてZIPに保存
                         img_io = io.BytesIO()
-                        img.save(img_io, format='PNG', optimize=False)
+                        img.save(img_io, format='PNG')
                         master_zip.writestr(f"{base_name}_{p:03d}.png", img_io.getvalue())
                         
-                        # ページごとにメモリをリセット
+                        # 6. メモリを空にして次へ
                         img.close()
                         img_io.close()
                         del img, pages
                         force_cleanup()
-                        total_count += 1
+                    
+                    processed_count += 1
+                    # 利用回数をカウントアップ（プロは免除）
+                    if not is_pro:
+                        usage_tracker[ip] += 1
                         
                 finally:
-                    # 処理後（またはエラー時）にファイルを確実に削除
                     if os.path.exists(tmp_path):
                         os.remove(tmp_path)
-        
-        if total_count == 0:
-            return jsonify({"error": "変換できるページがありませんでした。"}), 500
 
         zip_buffer.seek(0)
+        # レスポンスにメッセージを含めるため、カスタムヘッダー等ではなく
+        # プロユーザーには完了メッセージを出すためのフラグを付けても良いですが、
+        # ここではファイルを送信します。
         return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, download_name="materials.zip")
 
     except Exception as e:
-        print(f"ERROR: {traceback.format_exc()}")
-        return jsonify({"error": f"処理失敗: {str(e)}"}), 500
-    finally:
-        force_cleanup()
-
-if __name__ == '__main__':
-    # Renderの環境変数に合わせて起動
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+        return jsonify({"error": f"エラー: {str(e)}"}), 500
