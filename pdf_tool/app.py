@@ -8,10 +8,8 @@ UPLOAD_FOLDER = '/tmp'
 
 # --- 認証・制限設定 ---
 ADMIN_PASS = "admin1234"      # 開発者用
-PRO_PASS = "pro_user_77"     # 一般ユーザー用
+PRO_PASS = "pro_user_77"      # 一般ユーザー用
 FREE_LIMIT = 3                # 無料枠（ファイル数）
-
-# IPごとの利用回数を記録する辞書（本番運用ではデータベースを推奨）
 usage_tracker = {}
 
 def force_cleanup():
@@ -39,18 +37,12 @@ def index():
 def convert():
     force_cleanup()
     
-    # パスワードの確認
     pwd = request.form.get('password', '')
     is_pro = (pwd in [ADMIN_PASS, PRO_PASS])
-    
-    # IPアドレスの取得と制限チェック
     ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0]
     
     if not is_pro:
-        # 無料ユーザーの制限チェック
-        if ip not in usage_tracker:
-            usage_tracker[ip] = 0
-        
+        if ip not in usage_tracker: usage_tracker[ip] = 0
         if usage_tracker[ip] >= FREE_LIMIT:
             return jsonify({
                 "status": "locked",
@@ -64,61 +56,44 @@ def convert():
     dpi = int(request.form.get('dpi', 150))
     is_transparent = 'transparent' in request.form
     zip_buffer = io.BytesIO()
-    processed_count = 0
     
     try:
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as master_zip:
             for f in files:
                 if f.filename == '': continue
                 
-                # PDFを一度保存（xref tableエラー回避）
                 tmp_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}.pdf")
                 f.save(tmp_path)
                 
                 try:
-                    # 1. ページ情報を取得
                     info = pdfinfo_from_path(tmp_path)
                     base_name = os.path.splitext(f.filename)[0]
                     
                     for p in range(1, info["Pages"] + 1):
-                        # 2. 1ページだけ読み込み（メモリ節約）
-                        # 3. 裏側でPNG形式(RGBA)に展開
                         pages = convert_from_path(
                             tmp_path, dpi=dpi, first_page=p, last_page=p,
                             use_pdftocairo=True, thread_count=1
                         )
                         if not pages: continue
-                        
                         img = pages[0]
-                        
-                        # 4. 白を抜く計算
                         if is_transparent:
                             img = make_transparent_perfect(img)
                         
-                        # 5. PNGとしてZIPに保存
                         img_io = io.BytesIO()
                         img.save(img_io, format='PNG')
                         master_zip.writestr(f"{base_name}_{p:03d}.png", img_io.getvalue())
                         
-                        # 6. メモリを空にして次へ
                         img.close()
                         img_io.close()
                         del img, pages
                         force_cleanup()
                     
-                    processed_count += 1
-                    # 利用回数をカウントアップ（プロは免除）
-                    if not is_pro:
-                        usage_tracker[ip] += 1
+                    if not is_pro: usage_tracker[ip] += 1
                         
                 finally:
-                    if os.path.exists(tmp_path):
-                        os.remove(tmp_path)
+                    if os.path.exists(tmp_path): os.remove(tmp_path)
 
         zip_buffer.seek(0)
-        # レスポンスにメッセージを含めるため、カスタムヘッダー等ではなく
-        # プロユーザーには完了メッセージを出すためのフラグを付けても良いですが、
-        # ここではファイルを送信します。
         return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, download_name="materials.zip")
 
     except Exception as e:
