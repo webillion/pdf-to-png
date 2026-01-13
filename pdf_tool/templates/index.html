@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-      <!-- Google tag (gtag.js) -->
+       <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -14,109 +14,165 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Material Studio Pro</title>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; --err: #ef4444; }
-        body { background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .container { background: var(--card); padding: 2.5rem; border-radius: 1.5rem; width: 420px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); border: 1px solid #334155; }
-        .counter-badge { background: #334155; color: var(--accent); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; margin-bottom: 1rem; display: inline-block; }
-        .input-field { background: #0f172a; border: 1px solid #475569; color: white; padding: 0.8rem; border-radius: 0.6rem; width: 100%; box-sizing: border-box; margin-bottom: 1rem; }
-        .drop-zone { border: 2px dashed #475569; padding: 2rem; border-radius: 1rem; cursor: pointer; background: rgba(0,0,0,0.2); transition: 0.3s; }
-        .drop-zone:hover { border-color: var(--accent); }
-        button { width: 100%; padding: 1rem; border-radius: 0.6rem; border: none; background: var(--accent); color: #0f172a; font-weight: bold; cursor: pointer; font-size: 1.1rem; margin-top: 1.5rem; }
-        button:disabled { background: #475569; cursor: not-allowed; opacity: 0.6; }
-        #msg { display: none; padding: 1rem; border-radius: 0.6rem; margin-bottom: 1rem; font-size: 0.9rem; line-height: 1.5; }
-        .msg-error { background: rgba(239, 68, 68, 0.15); color: var(--err); border: 1px solid var(--err); }
-        .msg-success { background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid #22c55e; }
-        .loader { display: none; border: 4px solid #334155; border-top: 4px solid var(--accent); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 1rem auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; --dim: #94a3b8; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .app { background: var(--card); width: 100%; max-width: 480px; padding: 2.5rem; border-radius: 2rem; border: 1px solid #334155; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+        .usage-info { background: rgba(15, 23, 42, 0.6); color: var(--accent); padding: 6px 16px; border-radius: 99px; font-size: 0.8rem; font-weight: bold; margin-bottom: 2rem; display: inline-block; }
+        
+        /* ドロップゾーン */
+        .drop-zone { border: 2px dashed #475569; border-radius: 1rem; padding: 3rem 1rem; cursor: pointer; transition: 0.3s; background: rgba(15, 23, 42, 0.2); position: relative; }
+        .drop-zone:hover, .drop-zone.dragging { border-color: var(--accent); background: rgba(56, 189, 248, 0.05); }
+        .drop-zone p { margin: 0; color: var(--dim); }
+        
+        /* ファイルリスト表示 */
+        #file-list { margin-top: 1.5rem; text-align: left; max-height: 120px; overflow-y: auto; background: #0f172a; border-radius: 0.5rem; padding: 0.5rem; display: none; }
+        .file-name { font-size: 0.85rem; padding: 4px 8px; border-bottom: 1px solid #1e293b; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        
+        .field-label { display: block; text-align: left; font-size: 0.75rem; color: var(--dim); margin: 1rem 0 0.4rem 0; text-transform: uppercase; }
+        .input-field { width: 100%; background: #0f172a; border: 1px solid #334155; padding: 0.8rem; border-radius: 0.75rem; color: white; box-sizing: border-box; }
+        .input-field:focus { outline: none; border-color: var(--accent); }
+
+        button { width: 100%; padding: 1.1rem; border-radius: 1rem; border: none; background: var(--accent); color: #0f172a; font-weight: 800; font-size: 1.1rem; cursor: pointer; margin-top: 1.5rem; transition: 0.3s; }
+        button:disabled { background: #475569; color: var(--dim); cursor: not-allowed; }
+        
+        #msg-box { display: none; padding: 1rem; border-radius: 0.8rem; margin-bottom: 1.5rem; font-size: 0.9rem; line-height: 1.5; text-align: left; }
+        .err { background: rgba(244, 63, 94, 0.15); color: #f43f5e; border: 1px solid #f43f5e; }
+        .ok { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid #10b981; }
+
+        .loader { display: none; width: 24px; height: 24px; border: 3px solid #334155; border-top: 3px solid var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 15px auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div id="usage-ui" class="counter-badge">読み込み中...</div>
-        <h2 style="color:var(--accent); margin-top:0;">Material Studio Pro</h2>
-        <div id="msg"></div>
-        
-        <form id="form">
-            <input type="password" id="password" class="input-field" placeholder="Proパスワードで制限解除">
-            <div class="drop-zone" onclick="document.getElementById('file-input').click()" id="drop-area">
-                <p id="file-label">PDFをドロップまたは選択</p>
-                <input type="file" id="file-input" accept=".pdf" multiple style="display:none">
-            </div>
-            
-            <div style="display: flex; justify-content: space-between; margin-top: 1.5rem; font-size: 0.9rem;">
-                <label><input type="checkbox" id="transparent" checked> 背景を透明にする</label>
-                <select id="dpi" class="input-field" style="width: auto; margin: 0; padding: 2px 8px;">
-                    <option value="150">150DPI</option>
-                    <option value="300" selected>300DPI</option>
+
+<div class="app">
+    <div id="usage-badge" class="usage-info">ステータス取得中...</div>
+    <h1 style="margin:0; font-size:1.6rem; color:var(--accent);">Material Studio Pro</h1>
+    <p style="color:var(--dim); font-size:0.85rem; margin-bottom:2rem;">300DPI高画質・背景透過PDF変換</p>
+
+    <div id="msg-box"></div>
+
+    <form id="upload-form">
+        <label class="field-label">認証（パスワード）</label>
+        <input type="password" id="password" class="input-field" placeholder="Proパスワードで制限を解除">
+
+        <label class="field-label">PDFファイルを追加</label>
+        <div class="drop-zone" id="drop-zone">
+            <p id="drop-text"><strong>ここにドラッグ＆ドロップ</strong><br>またはクリックしてファイルを選択</p>
+            <div id="file-list"></div>
+            <input type="file" id="file-input" accept=".pdf" multiple style="display: none;">
+        </div>
+
+        <div style="display: flex; gap: 15px; margin-top: 1.5rem; align-items: center;">
+            <div style="flex:1;">
+                <label class="field-label">出力解像度</label>
+                <select id="dpi" class="input-field">
+                    <option value="150">150 DPI</option>
+                    <option value="300" selected>300 DPI</option>
                 </select>
             </div>
-            <button type="submit" id="submit-btn">素材を生成（一括）</button>
-        </form>
+            <div style="flex:1; padding-top: 20px;">
+                <label style="cursor:pointer; font-size:0.85rem; display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" id="transparent" checked style="width:1.2rem; height:1.2rem;"> 透過有効
+                </label>
+            </div>
+        </div>
+
+        <button type="submit" id="submit-btn">変換を開始する</button>
         <div class="loader" id="loader"></div>
-    </div>
+    </form>
+</div>
 
-    <script>
-        const updateUsage = async () => {
-            const res = await fetch('/status');
-            const data = await res.json();
-            document.getElementById('usage-ui').innerText = `本日の利用: ${data.count} / ${data.limit} 回`;
-        };
-        updateUsage();
+<script>
+    const form = document.getElementById('upload-form');
+    const fileInput = document.getElementById('file-input');
+    const dropZone = document.getElementById('drop-zone');
+    const fileList = document.getElementById('file-list');
+    const dropText = document.getElementById('drop-text');
+    const submitBtn = document.getElementById('submit-btn');
+    const msgBox = document.getElementById('msg-box');
+    const usageBadge = document.getElementById('usage-badge');
 
-        const fileInput = document.getElementById('file-input');
-        fileInput.onchange = () => {
-            document.getElementById('file-label').innerText = `${fileInput.files.length}個のPDFを選択中`;
-        };
+    // 回数取得
+    async function refreshStatus() {
+        const res = await fetch('/status');
+        const data = await res.json();
+        usageBadge.innerText = `本日の残り: ${Math.max(0, data.limit - data.count)} / ${data.limit} 回`;
+    }
+    refreshStatus();
 
-        document.getElementById('form').onsubmit = async (e) => {
-            e.preventDefault();
-            if (fileInput.files.length === 0) return;
+    // ドラッグ＆ドロップ
+    dropZone.onclick = () => fileInput.click();
+    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragging'); };
+    dropZone.ondragleave = () => dropZone.classList.remove('dragging');
+    dropZone.ondrop = (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragging');
+        fileInput.files = e.dataTransfer.files;
+        updateFileList();
+    };
+    fileInput.onchange = updateFileList;
 
-            const btn = document.getElementById('submit-btn');
-            const loader = document.getElementById('loader');
-            const msg = document.getElementById('msg');
-            const pwd = document.getElementById('password').value;
+    function updateFileList() {
+        if (fileInput.files.length > 0) {
+            dropText.style.display = 'none';
+            fileList.style.display = 'block';
+            fileList.innerHTML = Array.from(fileInput.files)
+                .map(f => `<div class="file-name">📄 ${f.name}</div>`).join('');
+        }
+    }
 
-            btn.disabled = true;
-            btn.innerText = "高速変換中...";
-            loader.style.display = 'block';
-            msg.style.display = 'none';
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        if (fileInput.files.length === 0) return alert("ファイルを選択してください");
 
-            const fd = new FormData();
-            for(let f of fileInput.files) fd.append('file', f);
-            fd.append('password', pwd);
-            fd.append('dpi', document.getElementById('dpi').value);
-            if(document.getElementById('transparent').checked) fd.append('transparent', 'on');
+        submitBtn.disabled = true;
+        submitBtn.innerText = "変換中...";
+        document.getElementById('loader').style.display = 'block';
+        msgBox.style.display = 'none';
 
-            try {
-                const res = await fetch('/convert', { method: 'POST', body: fd });
-                if (!res.ok) {
-                    const data = await res.json();
-                    throw new Error(data.error);
-                }
+        const pwd = document.getElementById('password').value;
+        const fd = new FormData();
+        for (let f of fileInput.files) fd.append('file', f);
+        fd.append('password', pwd);
+        fd.append('dpi', document.getElementById('dpi').value);
+        if (document.getElementById('transparent').checked) fd.append('transparent', 'on');
 
+        try {
+            const res = await fetch('/convert', { method: 'POST', body: fd });
+            
+            if (res.status === 403) {
+                const data = await res.json();
+                showMsg(data.error, "err");
+            } else if (!res.ok) {
+                throw new Error("変換に失敗しました。ファイルが重すぎる可能性があります。");
+            } else {
+                // 成功
                 if (pwd === "admin1234" || pwd === "pro_user_77") {
-                    msg.innerText = "解除されました。何回でもお使いください。";
-                    msg.className = "msg-success";
-                    msg.style.display = "block";
+                    showMsg("制限を解除しました。無制限で使えます。", "ok");
+                    usageBadge.innerText = "PRO MODE: 無制限利用中";
                 }
-
                 const blob = await res.blob();
                 const a = document.createElement('a');
                 a.href = window.URL.createObjectURL(blob);
-                a.download = `material_${Date.now()}.zip`;
+                a.download = `material_pro_${Date.now()}.zip`;
                 a.click();
-                updateUsage();
-            } catch (err) {
-                msg.innerText = err.message;
-                msg.className = "msg-error";
-                msg.style.display = "block";
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "素材を生成（一括）";
-                loader.style.display = 'none';
             }
-        };
-    </script>
+        } catch (err) {
+            showMsg(err.message, "err");
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "変換を開始する";
+            document.getElementById('loader').style.display = 'none';
+            refreshStatus();
+        }
+    };
+
+    function showMsg(t, c) {
+        msgBox.innerText = t;
+        msgBox.className = c;
+        msgBox.style.display = "block";
+    }
+</script>
 </body>
 </html>
