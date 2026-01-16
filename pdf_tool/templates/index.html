@@ -1,178 +1,212 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-       <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-MTB190WE2E');
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Material Studio Pro</title>
+    <title>PDF to PNG Converter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; --dim: #94a3b8; }
-        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
-        .app { background: var(--card); width: 100%; max-width: 480px; padding: 2.5rem; border-radius: 2rem; border: 1px solid #334155; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
-        .usage-info { background: rgba(15, 23, 42, 0.6); color: var(--accent); padding: 6px 16px; border-radius: 99px; font-size: 0.8rem; font-weight: bold; margin-bottom: 2rem; display: inline-block; }
-        
-        /* ドロップゾーン */
-        .drop-zone { border: 2px dashed #475569; border-radius: 1rem; padding: 3rem 1rem; cursor: pointer; transition: 0.3s; background: rgba(15, 23, 42, 0.2); position: relative; }
-        .drop-zone:hover, .drop-zone.dragging { border-color: var(--accent); background: rgba(56, 189, 248, 0.05); }
-        .drop-zone p { margin: 0; color: var(--dim); }
-        
-        /* ファイルリスト表示 */
-        #file-list { margin-top: 1.5rem; text-align: left; max-height: 120px; overflow-y: auto; background: #0f172a; border-radius: 0.5rem; padding: 0.5rem; display: none; }
-        .file-name { font-size: 0.85rem; padding: 4px 8px; border-bottom: 1px solid #1e293b; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        
-        .field-label { display: block; text-align: left; font-size: 0.75rem; color: var(--dim); margin: 1rem 0 0.4rem 0; text-transform: uppercase; }
-        .input-field { width: 100%; background: #0f172a; border: 1px solid #334155; padding: 0.8rem; border-radius: 0.75rem; color: white; box-sizing: border-box; }
-        .input-field:focus { outline: none; border-color: var(--accent); }
+        body { font-family: "Helvetica Neue", Arial, sans-serif; background-color: #f4f7f6; color: #333; display: flex; justify-content: center; padding-top: 50px; }
+        .container { background: white; width: 100%; max-width: 500px; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        h1 { text-align: center; color: #444; margin-bottom: 25px; font-size: 1.5rem; }
 
-        button { width: 100%; padding: 1.1rem; border-radius: 1rem; border: none; background: var(--accent); color: #0f172a; font-weight: 800; font-size: 1.1rem; cursor: pointer; margin-top: 1.5rem; transition: 0.3s; }
-        button:disabled { background: #475569; color: var(--dim); cursor: not-allowed; }
+        .status-card { background-color: #f8f9fa; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 25px; border: 1px solid #eee; }
+        .counter-wrapper { font-size: 2.5rem; font-weight: bold; color: #333; line-height: 1; margin: 10px 0; }
         
-        #msg-box { display: none; padding: 1rem; border-radius: 0.8rem; margin-bottom: 1.5rem; font-size: 0.9rem; line-height: 1.5; text-align: left; }
-        .err { background: rgba(244, 63, 94, 0.15); color: #f43f5e; border: 1px solid #f43f5e; }
-        .ok { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid #10b981; }
+        .badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
+        .badge-loading { background-color: #eee; color: #777; border: 1px solid #ddd; } /* 読み込み中用 */
+        .badge-success { background-color: #e6f9ed; color: #28a745; border: 1px solid #c3e6cb; }
+        .badge-error { background-color: #fbeaea; color: #dc3545; border: 1px solid #f5c6cb; }
 
-        .loader { display: none; width: 24px; height: 24px; border: 3px solid #334155; border-top: 3px solid var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 15px auto; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 0.9rem; }
+        input[type="file"], input[type="password"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 14px; background-color: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        .password-section { display: none; background-color: #fff5f5; padding: 15px; border-radius: 6px; border: 1px dashed #ffcccc; margin-top: 15px; }
+        .password-section.show { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        #log-area { margin-top: 20px; font-size: 0.8rem; color: #666; height: 80px; overflow-y: auto; background: #fafafa; border: 1px solid #eee; padding: 10px; display: none; }
     </style>
 </head>
 <body>
+    <div class="container">
+        <h1>PDF to PNG Converter</h1>
 
-<div class="app">
-    <div id="usage-badge" class="usage-info">ステータス取得中...</div>
-    <h1 style="margin:0; font-size:1.6rem; color:var(--accent);">Material Studio Pro</h1>
-    <p style="color:var(--dim); font-size:0.85rem; margin-bottom:2rem;">300DPI高画質・背景透過PDF変換</p>
-
-    <div id="msg-box"></div>
-
-    <form id="upload-form">
-        <label class="field-label">認証（パスワード）</label>
-        <input type="password" id="password" class="input-field" placeholder="Proパスワードで制限を解除">
-
-        <label class="field-label">PDFファイルを追加</label>
-        <div class="drop-zone" id="drop-zone">
-            <p id="drop-text"><strong>ここにドラッグ＆ドロップ</strong><br>またはクリックしてファイルを選択</p>
-            <div id="file-list"></div>
-            <input type="file" id="file-input" accept=".pdf" multiple style="display: none;">
-        </div>
-
-        <div style="display: flex; gap: 15px; margin-top: 1.5rem; align-items: center;">
-            <div style="flex:1;">
-                <label class="field-label">出力解像度</label>
-                <select id="dpi" class="input-field">
-                    <option value="150">150 DPI</option>
-                    <option value="300" selected>300 DPI</option>
-                </select>
-            </div>
-            <div style="flex:1; padding-top: 20px;">
-                <label style="cursor:pointer; font-size:0.85rem; display:flex; align-items:center; gap:8px;">
-                    <input type="checkbox" id="transparent" checked style="width:1.2rem; height:1.2rem;"> 透過有効
-                </label>
-            </div>
-        </div>
-
-        <button type="submit" id="submit-btn">変換を開始する</button>
-        <div class="loader" id="loader"></div>
-    </form>
-</div>
-
-<script>
-    const form = document.getElementById('upload-form');
-    const fileInput = document.getElementById('file-input');
-    const dropZone = document.getElementById('drop-zone');
-    const fileList = document.getElementById('file-list');
-    const dropText = document.getElementById('drop-text');
-    const submitBtn = document.getElementById('submit-btn');
-    const msgBox = document.getElementById('msg-box');
-    const usageBadge = document.getElementById('usage-badge');
-
-    // 回数取得
-    async function refreshStatus() {
-        const res = await fetch('/status');
-        const data = await res.json();
-        usageBadge.innerText = `本日の残り: ${Math.max(0, data.limit - data.count)} / ${data.limit} 回`;
-    }
-    refreshStatus();
-
-    // ドラッグ＆ドロップ
-    dropZone.onclick = () => fileInput.click();
-    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragging'); };
-    dropZone.ondragleave = () => dropZone.classList.remove('dragging');
-    dropZone.ondrop = (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('dragging');
-        fileInput.files = e.dataTransfer.files;
-        updateFileList();
-    };
-    fileInput.onchange = updateFileList;
-
-    function updateFileList() {
-        if (fileInput.files.length > 0) {
-            dropText.style.display = 'none';
-            fileList.style.display = 'block';
-            fileList.innerHTML = Array.from(fileInput.files)
-                .map(f => `<div class="file-name">📄 ${f.name}</div>`).join('');
-        }
-    }
-
-    form.onsubmit = async (e) => {
-        e.preventDefault();
-        if (fileInput.files.length === 0) return alert("ファイルを選択してください");
-
-        submitBtn.disabled = true;
-        submitBtn.innerText = "変換中...";
-        document.getElementById('loader').style.display = 'block';
-        msgBox.style.display = 'none';
-
-        const pwd = document.getElementById('password').value;
-        const fd = new FormData();
-        for (let f of fileInput.files) fd.append('file', f);
-        fd.append('password', pwd);
-        fd.append('dpi', document.getElementById('dpi').value);
-        if (document.getElementById('transparent').checked) fd.append('transparent', 'on');
-
-        try {
-            const res = await fetch('/convert', { method: 'POST', body: fd });
+        <div class="status-card">
+            <div>本日の利用状況</div>
             
-            if (res.status === 403) {
-                const data = await res.json();
-                showMsg(data.error, "err");
-            } else if (!res.ok) {
-                throw new Error("変換に失敗しました。ファイルが重すぎる可能性があります。");
-            } else {
-                // 成功
-                if (pwd === "admin1234" || pwd === "pro_user_77") {
-                    showMsg("制限を解除しました。無制限で使えます。", "ok");
-                    usageBadge.innerText = "PRO MODE: 無制限利用中";
-                }
-                const blob = await res.blob();
-                const a = document.createElement('a');
-                a.href = window.URL.createObjectURL(blob);
-                a.download = `material_pro_${Date.now()}.zip`;
-                a.click();
-            }
-        } catch (err) {
-            showMsg(err.message, "err");
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.innerText = "変換を開始する";
-            document.getElementById('loader').style.display = 'none';
-            refreshStatus();
-        }
-    };
+            <div id="count-display" class="counter-wrapper">
+                --- / ---
+            </div>
+            
+            <div>
+                <span id="status-badge" class="badge badge-loading">
+                    状況を確認中...
+                </span>
+            </div>
+        </div>
 
-    function showMsg(t, c) {
-        msgBox.innerText = t;
-        msgBox.className = c;
-        msgBox.style.display = "block";
-    }
-</script>
+        <div class="form-group">
+            <label>PDFファイルを選択</label>
+            <input type="file" id="pdfFile" accept=".pdf">
+        </div>
+
+        <div class="form-group">
+            <label>解像度</label>
+            <label style="display:inline; margin-right:15px;"><input type="radio" name="dpi" value="150"> 150 DPI</label>
+            <label style="display:inline;"><input type="radio" name="dpi" value="300" checked> 300 DPI</label>
+        </div>
+
+        <div class="form-group">
+            <label style="font-weight:normal;"><input type="checkbox" id="transparentCheck"> 白背景を透明にする</label>
+        </div>
+
+        <div id="pass-area" class="password-section">
+            <label style="color:#dc3545;">制限解除パスワード</label>
+            <input type="password" id="passwordInput" placeholder="パスワードを入力してください">
+        </div>
+
+        <button id="runBtn" onclick="startProcess()">変換を実行</button>
+        <div id="log-area"></div>
+    </div>
+
+    <canvas id="hiddenCanvas" style="display: none;"></canvas>
+
+    <script>
+        const logArea = document.getElementById('log-area');
+        function log(msg) {
+            logArea.style.display = 'block';
+            logArea.textContent = msg;
+        }
+
+        // 画面の文字を更新する関数
+        function updateUI(uiData) {
+            document.getElementById('count-display').textContent = uiData.text_count;
+            
+            const badge = document.getElementById('status-badge');
+            badge.textContent = uiData.text_message;
+            badge.className = 'badge ' + uiData.css_badge;
+
+            const passArea = document.getElementById('pass-area');
+            if (uiData.show_pass) {
+                passArea.classList.add('show');
+            } else {
+                passArea.classList.remove('show');
+            }
+        }
+
+        // ★ページが開かれたらすぐにPythonから初期状態を取得する
+        window.onload = async function() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                updateUI(data); // 画面を「---」から「0 / 3」などに書き換え
+            } catch(e) {
+                console.error("初期データ取得エラー", e);
+                document.getElementById('status-badge').textContent = "通信エラー";
+            }
+        };
+
+        async function startProcess() {
+            const fileInput = document.getElementById('pdfFile');
+            const passwordInput = document.getElementById('passwordInput');
+            const runBtn = document.getElementById('runBtn');
+
+            if (fileInput.files.length === 0) {
+                alert("ファイルを選択してください。");
+                return;
+            }
+
+            runBtn.disabled = true;
+            runBtn.textContent = "認証中...";
+            
+            try {
+                // 認証APIを叩く
+                const res = await fetch('/api/check_auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: passwordInput.value })
+                });
+                const data = await res.json();
+
+                if (!res.ok || data.status !== 'ok') {
+                    alert(data.message || "認証エラー");
+                    runBtn.disabled = false;
+                    runBtn.textContent = "変換を実行";
+                    
+                    // エラー時の強制表示
+                    document.getElementById('pass-area').classList.add('show');
+                    const badge = document.getElementById('status-badge');
+                    badge.textContent = "パスワードエラー";
+                    badge.className = "badge badge-error";
+                    return;
+                }
+
+                // 更新されたカウントとメッセージを反映
+                updateUI(data.ui_data);
+                
+                log("認証成功。変換処理を開始します...");
+
+                // PDF変換処理
+                runBtn.textContent = "変換中...";
+                await convertPdfToPng(fileInput.files[0]);
+
+            } catch (e) {
+                console.error(e);
+                alert("エラー: " + e.message);
+                runBtn.disabled = false;
+                runBtn.textContent = "変換を実行";
+            }
+        }
+
+        async function convertPdfToPng(file) {
+            const dpi = document.querySelector('input[name="dpi"]:checked').value;
+            const doTransparent = document.getElementById('transparentCheck').checked;
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            const zip = new JSZip();
+            const canvas = document.getElementById('hiddenCanvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const total = pdf.numPages;
+            
+            for (let i = 1; i <= total; i++) {
+                log(`ページ処理中... ${i} / ${total}`);
+                const page = await pdf.getPage(i);
+                const scale = dpi / 72; 
+                const viewport = page.getViewport({ scale: scale });
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+                if (doTransparent) {
+                    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const d = imgData.data;
+                    for (let j = 0; j < d.length; j += 4) {
+                        if (d[j]>245 && d[j+1]>245 && d[j+2]>245) d[j+3] = 0;
+                    }
+                    ctx.putImageData(imgData, 0, 0);
+                }
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+                zip.file(`page_${String(i).padStart(3, '0')}.png`, blob);
+            }
+            
+            log("ZIP圧縮中...");
+            const content = await zip.generateAsync({ type: "blob" });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(content);
+            link.download = "converted_images.zip";
+            link.click();
+            log("完了しました！");
+            runBtn.disabled = false;
+            runBtn.textContent = "変換を実行";
+        }
+    </script>
 </body>
 </html>
