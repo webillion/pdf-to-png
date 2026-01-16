@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-       <!-- Google tag (gtag.js) -->
+        <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -172,16 +172,13 @@
             if (files.length === 0) return;
             const file = files[0];
 
-            // PDF以外を弾く
             if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
                 alert("PDFファイルのみ選択可能です。");
-                fileInput.value = ''; // リセット
+                fileInput.value = ''; 
                 fileNameDisplay.style.display = 'none';
                 return;
             }
 
-            // ファイル名を表示
-            // ドラッグドロップの場合はfileInput.filesに入らないためDataTransferで再設定
             const dt = new DataTransfer();
             dt.items.add(file);
             fileInput.files = dt.files;
@@ -218,26 +215,23 @@
 
             runBtn.disabled = true;
             runBtn.textContent = "処理準備中...";
-            logArea.innerHTML = ''; // ログクリア
+            logArea.innerHTML = ''; 
 
             try {
-                // 1. まず利用回数をインクリメント（またはチェック）
                 const checkRes = await fetch('/api/increment', { method: 'POST' });
                 const checkData = await checkRes.json();
 
                 if (!checkRes.ok) {
                     updateUI(checkData.ui_data);
-                    alert(checkData.message); // 上限エラー
+                    alert(checkData.message); 
                     runBtn.disabled = false;
                     runBtn.textContent = "変換を実行";
                     return;
                 }
                 
-                // カウント更新反映
                 updateUI(checkData.ui_data);
                 log("認証OK。変換処理を開始します...");
 
-                // 2. クライアントサイド変換
                 await processPdf(fileInput.files[0]);
 
             } catch(e) {
@@ -266,7 +260,7 @@
                 log(`ページ処理中... (${i}/${total})`);
                 
                 const page = await pdf.getPage(i);
-                const scale = dpi / 72; // PDF.jsは72dpi基準
+                const scale = dpi / 72; 
                 const viewport = page.getViewport({ scale: scale });
 
                 canvas.width = viewport.width;
@@ -278,15 +272,12 @@
                     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     const d = imgData.data;
                     
-                    // 【改善】透過処理の精度向上
-                    // 以前は >240 でしたが、 >250 に上げることで「ほぼ真っ白」な部分だけを消すようにしました。
-                    // これにより、文字の薄い部分や細い線が消えるのを防ぎます。
+                    // 白判定の精度改善 (250以上)
                     for (let j = 0; j < d.length; j += 4) {
                         const r = d[j];
                         const g = d[j+1];
                         const b = d[j+2];
                         
-                        // 閾値を厳しく設定（限りなく白に近い場合のみ透明化）
                         if (r > 250 && g > 250 && b > 250) {
                             d[j+3] = 0;
                         }
@@ -302,7 +293,6 @@
             log("ZIP圧縮中...");
             const content = await zip.generateAsync({ type: "blob" });
             
-            // ダウンロードリンク作成
             const link = document.createElement('a');
             link.href = URL.createObjectURL(content);
             link.download = file.name.replace('.pdf', '') + "_converted.zip";
