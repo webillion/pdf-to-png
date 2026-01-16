@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-     <!-- Google tag (gtag.js) -->
+      <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -12,174 +12,294 @@
 </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF to PNG Pro</title>
+    <title>PDF Conversion Tool</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    
     <style>
-        :root { --accent: #38bdf8; --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; padding: 40px 20px; }
-        .container { background: var(--card); width: 100%; max-width: 500px; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        :root { --primary: #3b82f6; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --error: #ef4444; --success: #22c55e; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; padding: 40px 20px; margin: 0; }
         
-        .status-card { background: rgba(15,23,42,0.5); padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 25px; border: 1px solid #334155; }
-        .counter-wrapper { font-size: 2.5rem; font-weight: bold; color: var(--accent); margin: 10px 0; }
-        .badge { padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: inline-block; }
-        .badge-success { background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid #10b981; }
-        .badge-error { background: rgba(244,63,94,0.1); color: #f43f5e; border: 1px solid #f43f5e; }
+        .container { background: var(--card); width: 100%; max-width: 520px; padding: 32px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        h1 { text-align: center; margin-bottom: 24px; color: var(--primary); }
 
-        .drop-zone { border: 2px dashed #475569; border-radius: 15px; padding: 40px 20px; text-align: center; cursor: pointer; transition: 0.3s; margin-bottom: 20px; }
-        .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: rgba(56,189,248,0.05); }
-        #file-info { color: var(--accent); font-weight: bold; margin-top: 10px; font-size: 0.9rem; }
+        /* ステータスカード */
+        .status-card { background: rgba(15, 23, 42, 0.6); padding: 20px; border-radius: 16px; text-align: center; border: 1px solid #334155; margin-bottom: 24px; }
+        .count-display { font-size: 2.5rem; font-weight: 800; margin: 10px 0; letter-spacing: 1px; }
+        .badge { display: inline-block; padding: 6px 12px; border-radius: 99px; font-size: 0.85rem; font-weight: bold; }
+        .badge-success { color: var(--success); background: rgba(34, 197, 94, 0.1); border: 1px solid var(--success); }
+        .badge-error { color: var(--error); background: rgba(239, 68, 68, 0.1); border: 1px solid var(--error); }
+        .badge-vip { color: #facc15; background: rgba(250, 204, 21, 0.1); border: 1px solid #facc15; box-shadow: 0 0 10px rgba(250, 204, 21, 0.2); }
 
-        .input-box { width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: white; margin-bottom: 15px; box-sizing: border-box; } [cite: 15]
-        .btn { width: 100%; padding: 15px; background: var(--accent); color: #0f172a; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1rem; } [cite: 16, 17]
-        .btn:disabled { background: #475569; cursor: not-allowed; }
+        /* ドロップゾーン */
+        .drop-zone { 
+            border: 2px dashed #475569; border-radius: 16px; padding: 40px 20px; text-align: center; 
+            cursor: pointer; transition: 0.3s; margin-bottom: 20px; background: rgba(255,255,255,0.02);
+        }
+        .drop-zone:hover, .drop-zone.dragover { border-color: var(--primary); background: rgba(59, 130, 246, 0.1); }
+        .drop-zone p { margin: 0; color: #94a3b8; pointer-events: none; }
+        .drop-zone strong { display: block; font-size: 1.1rem; color: var(--text); margin-bottom: 5px; pointer-events: none; }
+        
+        /* ファイル名表示エリア */
+        #file-name-display {
+            display: none; background: #0f172a; padding: 12px; border-radius: 8px; border-left: 4px solid var(--primary);
+            margin-bottom: 20px; font-weight: bold; color: var(--primary); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
 
-        #pass-section { display: none; margin-bottom: 20px; padding: 15px; background: rgba(244,63,94,0.05); border-radius: 10px; border: 1px solid #f43f5e; }
-        #unlock-msg { display: none; color: #10b981; font-weight: bold; margin-bottom: 15px; text-align: center; }
-        #log-area { margin-top: 20px; font-size: 0.8rem; color: #94a3b8; height: 60px; overflow-y: auto; background: #0b1120; padding: 10px; border-radius: 5px; }
+        /* 制限解除エリア */
+        .unlock-area { background: rgba(255,255,255,0.03); padding: 16px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #334155; }
+        .unlock-row { display: flex; gap: 10px; margin-top: 10px; }
+        
+        input[type="password"] { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: white; }
+        .btn-unlock { padding: 0 20px; background: #475569; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-unlock:hover { background: #64748b; }
+        
+        /* 変換ボタン */
+        .btn-main { width: 100%; padding: 16px; background: var(--primary); color: #0f172a; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-main:hover { filter: brightness(1.1); }
+        .btn-main:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+
+        .log-area { margin-top: 20px; font-size: 0.8rem; color: #94a3b8; height: 100px; overflow-y: auto; background: #0b1120; padding: 10px; border-radius: 8px; display: none; }
+        .vip-msg { display: none; color: #facc15; font-weight: bold; text-align: center; margin-bottom: 10px; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>PDF Converter Pro</h1>
 
-        <div id="unlock-msg"></div>
-
         <div class="status-card">
-            <div id="count-display" class="counter-wrapper">--- / ---</div>
-            <span id="status-badge" class="badge">確認中...</span>
+            <div style="font-size:0.9rem; color:#94a3b8;">本日の利用状況</div>
+            <div id="count-display" class="count-display">--- / ---</div>
+            <span id="status-badge" class="badge">読み込み中...</span>
         </div>
 
-        <div id="pass-section">
-            <label style="color:#f43f5e; font-size: 0.8rem; font-weight:bold;">制限解除パスワード</label>
-            <input type="password" id="passwordInput" class="input-box" placeholder="パスワードを入力">
+        <div id="unlock-section" class="unlock-area">
+            <div id="vip-message" class="vip-msg">✨ 制限が解除されました。無制限に使えます ✨</div>
+            <div id="unlock-form">
+                <label style="font-size:0.85rem; color:#ef4444;">制限を解除する</label>
+                <div class="unlock-row">
+                    <input type="password" id="passwordInput" placeholder="パスワードを入力">
+                    <button class="btn-unlock" onclick="unlockLimit()">解除</button>
+                </div>
+            </div>
         </div>
 
-        <div class="drop-zone" id="drop-zone">
-            <p><strong>PDFをドラッグ&ドロップ</strong></p>
-            <p style="font-size: 0.8rem; color:#94a3b8;">またはクリックしてファイルを選択</p>
-            <div id="file-info"></div>
-            <input type="file" id="pdfFile" accept=".pdf" style="display:none">
+        <div id="drop-zone" class="drop-zone">
+            <strong>ここにPDFをドラッグ＆ドロップ</strong>
+            <p>またはクリックしてファイルを選択</p>
+            <input type="file" id="fileInput" accept=".pdf" style="display:none;">
         </div>
 
-        <div style="margin-bottom:20px; font-size:0.9rem;">
-            <label><input type="checkbox" id="transparentCheck" checked> 白背景を透明にする</label>
+        <div id="file-name-display"></div>
+
+        <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <label style="cursor:pointer;"><input type="checkbox" id="transparentCheck" checked> 白背景を透明にする</label>
+            <select id="dpiSelect" style="padding: 5px; border-radius: 5px; background: #0f172a; color: white; border: 1px solid #475569;">
+                <option value="150">150 DPI</option>
+                <option value="300" selected>300 DPI</option>
+            </select>
         </div>
 
-        <button id="runBtn" class="btn" onclick="startProcess()">変換を実行</button>
-        <div id="log-area" style="display:none;"></div>
+        <button id="runBtn" class="btn-main" onclick="startConversion()">変換を実行</button>
+        <div id="logArea" class="log-area"></div>
     </div>
 
-    <canvas id="hiddenCanvas" style="display:none"></canvas>
+    <canvas id="hiddenCanvas" style="display:none;"></canvas>
 
     <script>
+        // 要素取得
         const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('pdfFile');
-        const fileInfo = document.getElementById('file-info');
+        const fileInput = document.getElementById('fileInput');
+        const fileNameDisplay = document.getElementById('file-name-display');
+        const logArea = document.getElementById('logArea');
         const runBtn = document.getElementById('runBtn');
-        const logArea = document.getElementById('log-area');
+        const vipMsg = document.getElementById('vip-message');
+        const unlockForm = document.getElementById('unlock-form');
 
-        // ドラッグ&ドロップ処理
-        dropZone.onclick = () => fileInput.click();
-        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
-        dropZone.ondragleave = () => dropZone.classList.remove('dragover');
-        dropZone.ondrop = (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            fileInput.files = e.dataTransfer.files;
-            displayFileName();
-        };
-        fileInput.onchange = displayFileName;
-        function displayFileName() { 
-            if(fileInput.files.length > 0) fileInfo.textContent = "選択中: " + fileInput.files[0].name; 
+        // ログ表示関数
+        function log(msg) { 
+            logArea.style.display = 'block'; 
+            logArea.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`; 
+            logArea.scrollTop = logArea.scrollHeight;
         }
 
-        function log(msg) { logArea.style.display = 'block'; logArea.textContent = msg; }
+        // 初期ロード時にステータス取得
+        window.onload = async () => {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                updateUI(data);
+            } catch(e) { console.error(e); }
+        };
 
+        // UI更新関数
         function updateUI(data) {
             document.getElementById('count-display').textContent = data.text_count;
             const badge = document.getElementById('status-badge');
-            badge.textContent = data.text_message;
-            badge.className = 'badge ' + data.css_badge;
-            document.getElementById('pass-section').style.display = data.show_pass ? 'block' : 'none';
+            badge.textContent = data.text_status;
+            badge.className = 'badge ' + data.badge_class;
+
+            // VIPモードならパスワード入力を隠してメッセージを表示
+            if (data.is_vip) {
+                unlockForm.style.display = 'none';
+                vipMsg.style.display = 'block';
+            }
         }
 
-        window.onload = async () => {
-            const res = await fetch('/api/status');
-            const data = await res.json();
-            updateUI(data);
-        };
+        // --- ドラッグ＆ドロップとクリック選択の実装 ---
+        dropZone.addEventListener('click', () => fileInput.click());
 
-        async function startProcess() {
-            if (fileInput.files.length === 0) return alert("ファイルを選択してください");
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            const file = files[0];
+
+            // PDF以外を弾く
+            if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+                alert("PDFファイルのみ選択可能です。");
+                fileInput.value = ''; // リセット
+                fileNameDisplay.style.display = 'none';
+                return;
+            }
+
+            // ファイル名を表示（inputへはDataTransferで再設定できないのでfileInput.filesはそのまま利用するが、処理には引数のfilesを使う）
+            // ドラッグドロップの場合はfileInput.filesに入らないため、処理時に別途保持する必要があるが
+            // 今回は簡易化のため drop時に fileInput.files に代入するテクニックを使う
             
-            runBtn.disabled = true;
-            runBtn.textContent = "認証中...";
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            fileInput.files = dt.files;
+
+            fileNameDisplay.textContent = "📄 選択中: " + file.name;
+            fileNameDisplay.style.display = 'block';
+        }
+
+        // --- 制限解除処理 ---
+        async function unlockLimit() {
+            const pwd = document.getElementById('passwordInput').value;
+            if (!pwd) return alert("パスワードを入力してください");
 
             try {
-                const res = await fetch('/api/check_auth', {
+                const res = await fetch('/api/unlock', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password: document.getElementById('passwordInput').value })
-                }); [cite: 39, 40]
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({password: pwd})
+                });
                 const data = await res.json();
 
-                if (!res.ok) {
+                if (res.ok) {
                     alert(data.message);
+                    updateUI(data.ui_data);
+                } else {
+                    alert(data.message);
+                }
+            } catch(e) { alert("通信エラーが発生しました"); }
+        }
+
+        // --- 変換処理 ---
+        async function startConversion() {
+            if (fileInput.files.length === 0) return alert("PDFファイルを選択してください");
+
+            runBtn.disabled = true;
+            runBtn.textContent = "処理準備中...";
+            logArea.innerHTML = ''; // ログクリア
+
+            try {
+                // 1. まず利用回数をインクリメント（またはチェック）
+                const checkRes = await fetch('/api/increment', { method: 'POST' });
+                const checkData = await checkRes.json();
+
+                if (!checkRes.ok) {
+                    updateUI(checkData.ui_data);
+                    alert(checkData.message); // 上限エラー
                     runBtn.disabled = false;
                     runBtn.textContent = "変換を実行";
                     return;
                 }
+                
+                // カウント更新反映
+                updateUI(checkData.ui_data);
+                log("認証OK。変換処理を開始します...");
 
-                if (data.message) {
-                    const msgEl = document.getElementById('unlock-msg');
-                    msgEl.textContent = data.message;
-                    msgEl.style.display = "block";
-                }
+                // 2. クライアントサイド変換
+                await processPdf(fileInput.files[0]);
 
-                updateUI(data.ui_data);
-                log("処理開始...");
-                await convertPdfToPng(fileInput.files[0]);
-            } catch (e) { 
-                alert("エラーが発生しました"); 
-                runBtn.disabled = false; 
-                runBtn.textContent = "変換を実行"; 
-            } [cite: 47, 48]
+            } catch(e) {
+                console.error(e);
+                alert("エラーが発生しました: " + e.message);
+                runBtn.disabled = false;
+                runBtn.textContent = "変換を実行";
+            }
         }
 
-        async function convertPdfToPng(file) {
+        async function processPdf(file) {
+            const dpi = parseInt(document.getElementById('dpiSelect').value);
             const doTransparent = document.getElementById('transparentCheck').checked;
+            
+            log("PDFを読み込み中...");
             const arrayBuffer = await file.arrayBuffer();
             const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
             const zip = new JSZip();
+            
             const canvas = document.getElementById('hiddenCanvas');
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-            for (let i = 1; i <= pdf.numPages; i++) {
-                log(`処理中: ${i} / ${pdf.numPages}`);
+            
+            const total = pdf.numPages;
+            
+            for (let i = 1; i <= total; i++) {
+                log(`ページ処理中... (${i}/${total})`);
+                
                 const page = await pdf.getPage(i);
-                const viewport = page.getViewport({ scale: 300 / 72 }); // 300 DPI
+                const scale = dpi / 72; // PDF.jsは72dpi基準
+                const viewport = page.getViewport({ scale: scale });
+
                 canvas.width = viewport.width;
                 canvas.height = viewport.height;
+
                 await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
                 if (doTransparent) {
                     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     const d = imgData.data;
+                    // 白っぽい色を透明に
                     for (let j = 0; j < d.length; j += 4) {
-                        if (d[j]>245 && d[j+1]>245 && d[j+2]>245) d[j+3] = 0; // 高速透過演算
+                        if (d[j] > 240 && d[j+1] > 240 && d[j+2] > 240) {
+                            d[j+3] = 0;
+                        }
                     }
                     ctx.putImageData(imgData, 0, 0);
                 }
+
                 const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-                zip.file(`page_${i}.png`, blob);
+                const fileName = `page_${String(i).padStart(3, '0')}.png`;
+                zip.file(fileName, blob);
             }
-            
+
+            log("ZIP圧縮中...");
             const content = await zip.generateAsync({ type: "blob" });
+            
+            // ダウンロードリンク作成
             const link = document.createElement('a');
             link.href = URL.createObjectURL(content);
-            link.download = "converted_images.zip";
+            link.download = file.name.replace('.pdf', '') + "_converted.zip";
             link.click();
             
             log("完了しました！");
@@ -189,4 +309,3 @@
     </script>
 </body>
 </html>
-
