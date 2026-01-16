@@ -1,159 +1,90 @@
 import os
-import uuid
-import zipfile
-import io
-import gc
-import time
-import logging
-import traceback
-from datetime import datetime
-from flask import Flask, request, render_template, send_file, jsonify
-from pdf2image import convert_from_path, pdfinfo_from_path
-from PIL import Image, ImageChops
-
-# --- ロギング設定 ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
-logger = logging.getLogger(__name__)
+from datetime import date
+from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
-# Renderの書き込み可能領域
-UPLOAD_FOLDER = '/tmp'
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB制限
+app.secret_key = os.urandom(24)
 
-# --- 定数・制限設定 ---
-ADMIN_PASS = "admin1234"
-PRO_PASS = "pro_user_77"
-FREE_LIMIT = 3
-usage_tracker = {}  # IPベースの利用回数管理
+VIP_PASSWORD = "secret_password"
+DAILY_LIMIT = 3
+user_usage_db = {}
 
-def force_cleanup():
-    """メモリをOSに強制返却。300DPI処理には必須"""
-    gc.collect()
-    time.sleep(0.05)
-
-def make_transparent_perfect(image):
-    """
-    ピクセルループを使わない高速透過。
-    300DPIの大容量画像でもメモリを消費せず一瞬で白を抜きます。
-    """
-    img = image.convert("RGBA")
-    r, g, b, a = img.split()
-    # 245以上の明るさを白と判定
-    mask = r.point(lambda x: 255 if x > 245 else 0)
-    mask = ImageChops.multiply(mask, g.point(lambda x: 255 if x > 245 else 0))
-    mask = ImageChops.multiply(mask, b.point(lambda x: 255 if x > 245 else 0))
-    inv_mask = ImageChops.invert(mask)
-    new_a = ImageChops.multiply(a, inv_mask)
-    img.putalpha(new_a)
-    del r, g, b, a, mask, inv_mask, new_a
-    return img
-
-def get_client_ip():
-    if request.headers.get('X-Forwarded-For'):
-        return request.headers.get('X-Forwarded-For').split(',')[0]
+def get_remote_ip():
+    if request.headers.getlist("X-Forwarded-For"):
+        return request.headers.getlist("X-Forwarded-For")[0]
     return request.remote_addr
+
+def get_usage_info(ip):
+    today_str = str(date.today())
+    if ip not in user_usage_db or user_usage_db[ip]['date'] != today_str:
+        user_usage_db[ip] = {'date': today_str, 'count': 0}
+    return user_usage_db[ip]
+
+# --- UI表示用の文言・デザインをPythonで作る関数 ---
+def get_ui_text_data(current_count):
+    remaining = max(0, DAILY_LIMIT - current_count)
+    is_limit_reached = (remaining <= 0)
+
+    # 画面に表示するテキストをここで作成
+    display_count = f"{current_count} / {DAILY_LIMIT}"
+    
+    if is_limit_reached:
+        display_msg = "上限に達しました (パスワード必須)"
+        badge_style = "badge-error"
+        show_pass = True
+    else:
+        display_msg = f"あと {remaining} 回 無料です"
+        badge_style = "badge-success"
+        show_pass = False
+
+    return {
+        'text_count': display_count,
+        'text_message': display_msg,
+        'css_badge': badge_style,
+        'show_pass': show_pass
+    }
+
+# --- ルーティング ---
 
 @app.route('/')
 def index():
+    # 変数を埋め込まず、ただHTMLファイルを返すだけにする
+    # これによりHTML側に {{ }} を書く必要がなくなります
     return render_template('index.html')
 
-@app.route('/status', methods=['GET'])
-def check_status():
-    ip = get_client_ip()
-    count = usage_tracker.get(ip, 0)
-    return jsonify({
-        "ip": ip,
-        "count": count,
-        "limit": FREE_LIMIT
-    })
+@app.route('/api/status', methods=['GET'])
+def get_status():
+    """ページを開いた直後に呼ばれる、初期状態取得用API"""
+    ip = get_remote_ip()
+    usage = get_usage_info(ip)
+    # 現在の状況を計算してJSONで返す
+    ui_data = get_ui_text_data(usage['count'])
+    return jsonify(ui_data)
 
-@app.route('/convert', methods=['POST'])
-def convert():
-    force_cleanup()
-    start_time = time.time()
+@app.route('/api/check_auth', methods=['POST'])
+def check_auth():
+    """変換実行時の認証用API"""
+    ip = get_remote_ip()
+    usage = get_usage_info(ip)
+    current_count = usage['count']
     
-    # 1. 認証と制限チェック
-    pwd = request.form.get('password', '')
-    is_pro = (pwd in [ADMIN_PASS, PRO_PASS])
-    ip = get_client_ip()
+    data = request.get_json() or {}
+    input_password = data.get('password', '')
+
+    authorized = False
     
-    if not is_pro:
-        current_count = usage_tracker.get(ip, 0)
-        if current_count >= FREE_LIMIT:
-            logger.warning(f"Locked: {ip}")
-            return jsonify({
-                "status": "locked",
-                "error": "無料枠（3回）を超えました。これ以上はパスワードが必要です。"
-            }), 403
-
-    # 2. ファイル取得
-    files = request.files.getlist('file')
-    if not files or files[0].filename == '':
-        return jsonify({"error": "ファイルがありません。"}), 400
-
-    dpi = int(request.form.get('dpi', 150))
-    is_transparent = 'transparent' in request.form
-    zip_buffer = io.BytesIO()
+    if current_count < DAILY_LIMIT:
+        authorized = True
+    elif input_password == VIP_PASSWORD:
+        authorized = True
     
-    try:
-        logger.info(f"Start: IP={ip}, DPI={dpi}")
-        
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as master_zip:
-            for f in files:
-                if not f.filename.lower().endswith('.pdf'): continue
-                
-                # 安全な一時保存（xrefエラー対策）
-                tmp_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}.pdf")
-                f.save(tmp_path)
-                
-                try:
-                    info = pdfinfo_from_path(tmp_path)
-                    total_pages = info["Pages"]
-                    base_name = os.path.splitext(f.filename)[0]
-                    
-                    for p in range(1, total_pages + 1):
-                        # 300DPI対策：1ページずつCairoで処理
-                        pages = convert_from_path(
-                            tmp_path, dpi=dpi, first_page=p, last_page=p,
-                            use_pdftocairo=True, thread_count=1
-                        )
-                        if not pages: continue
-                        
-                        img = pages[0]
-                        if is_transparent:
-                            img = make_transparent_perfect(img)
-                        
-                        img_io = io.BytesIO()
-                        img.save(img_io, format='PNG', optimize=False)
-                        master_zip.writestr(f"{base_name}_{p:03d}.png", img_io.getvalue())
-                        
-                        # 徹底したメモリ解放
-                        img.close()
-                        img_io.close()
-                        del img, pages
-                        force_cleanup()
-                        
-                    logger.info(f"Done: {f.filename}")
-                finally:
-                    if os.path.exists(tmp_path): os.remove(tmp_path)
-
-        if not is_pro:
-            usage_tracker[ip] = usage_tracker.get(ip, 0) + 1
-
-        zip_buffer.seek(0)
-        return send_file(
-            zip_buffer, 
-            mimetype='application/zip', 
-            as_attachment=True, 
-            download_name=f"materials_{datetime.now().strftime('%H%M%S')}.zip"
-        )
-
-    except Exception as e:
-        logger.error(traceback.format_exc())
-        return jsonify({"error": f"システムエラー: {str(e)}"}), 500
-    finally:
-        force_cleanup()
+    if authorized:
+        usage['count'] += 1
+        # 更新後のUIデータを作成
+        new_ui_data = get_ui_text_data(usage['count'])
+        return jsonify({'status': 'ok', 'ui_data': new_ui_data})
+    else:
+        return jsonify({'status': 'error', 'message': 'パスワードが違います'}), 403
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(debug=True, host='0.0.0.0', port=5000)
