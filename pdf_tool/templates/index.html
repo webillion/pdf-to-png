@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-      <!-- Google tag (gtag.js) -->
+       <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -180,10 +180,8 @@
                 return;
             }
 
-            // ファイル名を表示（inputへはDataTransferで再設定できないのでfileInput.filesはそのまま利用するが、処理には引数のfilesを使う）
-            // ドラッグドロップの場合はfileInput.filesに入らないため、処理時に別途保持する必要があるが
-            // 今回は簡易化のため drop時に fileInput.files に代入するテクニックを使う
-            
+            // ファイル名を表示
+            // ドラッグドロップの場合はfileInput.filesに入らないためDataTransferで再設定
             const dt = new DataTransfer();
             dt.items.add(file);
             fileInput.files = dt.files;
@@ -279,9 +277,17 @@
                 if (doTransparent) {
                     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     const d = imgData.data;
-                    // 白っぽい色を透明に
+                    
+                    // 【改善】透過処理の精度向上
+                    // 以前は >240 でしたが、 >250 に上げることで「ほぼ真っ白」な部分だけを消すようにしました。
+                    // これにより、文字の薄い部分や細い線が消えるのを防ぎます。
                     for (let j = 0; j < d.length; j += 4) {
-                        if (d[j] > 240 && d[j+1] > 240 && d[j+2] > 240) {
+                        const r = d[j];
+                        const g = d[j+1];
+                        const b = d[j+2];
+                        
+                        // 閾値を厳しく設定（限りなく白に近い場合のみ透明化）
+                        if (r > 250 && g > 250 && b > 250) {
                             d[j+3] = 0;
                         }
                     }
