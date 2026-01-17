@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-        <!-- Google tag (gtag.js) -->
+         <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -71,7 +71,7 @@
 
         <div class="status-card">
             <div style="font-size:0.9rem; color:#94a3b8;">本日の利用状況</div>
-            <div id="count-display" class="count-display">--- / ---</div>
+            <div id="count-display" class="count-display">--- / 3</div>
             <span id="status-badge" class="badge">読み込み中...</span>
         </div>
 
@@ -109,76 +109,126 @@
     <canvas id="hiddenCanvas" style="display:none;"></canvas>
 
     <script>
-        // 要素取得
+        // 定数
+        const DAILY_LIMIT = 3;
+        const STORAGE_KEY = 'pdf_app_state_v3'; // キーを変更して古いデータをクリア
+
+        // 状態管理変数
+        let appState = {
+            date: new Date().toLocaleDateString(),
+            count: 0,
+            is_vip: false
+        };
+
+        // --- 初期化 ---
+        window.onload = async () => {
+            // 1. ローカルストレージから復元（最優先）
+            loadLocalState();
+            updateUI();
+
+            // 2. サーバーと同期（念のため）
+            await syncWithServer();
+        };
+
+        function loadLocalState() {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                const saved = JSON.parse(raw);
+                const today = new Date().toLocaleDateString();
+                
+                // 日付が変わっていたらリセット（VIPは維持）
+                if (saved.date !== today) {
+                    appState = { date: today, count: 0, is_vip: saved.is_vip };
+                    saveLocalState();
+                } else {
+                    appState = saved;
+                }
+            }
+        }
+
+        function saveLocalState() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+        }
+
+        async function syncWithServer() {
+            try {
+                const res = await fetch('/api/status');
+                if (res.ok) {
+                    const serverData = await res.json();
+                    // サーバー側がVIPならローカルもVIPに
+                    if (serverData.is_vip) appState.is_vip = true;
+                    // カウントの同期（大きい方を採用などルール決め可能だが、今回はローカル優先しつつ整合性チェック）
+                    // ここではサーバーの日付が新しければサーバーを優先する実装
+                    // ただし、Renderの再起動問題を考慮し、ローカルのカウントが大きければローカルを維持
+                    if (serverData.count > appState.count && serverData.date === appState.date) {
+                        appState.count = serverData.count;
+                    }
+                    saveLocalState();
+                    updateUI();
+                }
+            } catch (e) { console.error("Sync failed", e); }
+        }
+
+        // --- UI更新 ---
+        function updateUI() {
+            const countDisplay = document.getElementById('count-display');
+            const statusBadge = document.getElementById('status-badge');
+            const unlockForm = document.getElementById('unlock-form');
+            const vipMsg = document.getElementById('vip-message');
+
+            if (appState.is_vip) {
+                countDisplay.textContent = "∞ (無制限)";
+                statusBadge.textContent = "制限解除済み：無制限に使えます";
+                statusBadge.className = "badge badge-vip";
+                unlockForm.style.display = 'none';
+                vipMsg.style.display = 'block';
+            } else {
+                countDisplay.textContent = `${appState.count} / ${DAILY_LIMIT}`;
+                
+                if (appState.count >= DAILY_LIMIT) {
+                    statusBadge.textContent = "本日の上限に達しました";
+                    statusBadge.className = "badge badge-error";
+                } else {
+                    statusBadge.textContent = `あと ${DAILY_LIMIT - appState.count} 回 利用可能です`;
+                    statusBadge.className = "badge badge-success";
+                }
+                
+                unlockForm.style.display = 'block';
+                vipMsg.style.display = 'none';
+            }
+        }
+
+        // --- イベント処理 ---
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('fileInput');
         const fileNameDisplay = document.getElementById('file-name-display');
         const logArea = document.getElementById('logArea');
         const runBtn = document.getElementById('runBtn');
-        const vipMsg = document.getElementById('vip-message');
-        const unlockForm = document.getElementById('unlock-form');
 
-        // ログ表示関数
         function log(msg) { 
             logArea.style.display = 'block'; 
             logArea.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`; 
             logArea.scrollTop = logArea.scrollHeight;
         }
 
-        // 初期ロード時にステータス取得
-        window.onload = async () => {
-            try {
-                const res = await fetch('/api/status');
-                const data = await res.json();
-                updateUI(data);
-            } catch(e) { console.error(e); }
-        };
-
-        // UI更新関数
-        function updateUI(data) {
-            document.getElementById('count-display').textContent = data.text_count;
-            const badge = document.getElementById('status-badge');
-            badge.textContent = data.text_status;
-            badge.className = 'badge ' + data.badge_class;
-
-            // VIPモードならパスワード入力を隠してメッセージを表示
-            if (data.is_vip) {
-                unlockForm.style.display = 'none';
-                vipMsg.style.display = 'block';
-            }
-        }
-
-        // --- ドラッグ＆ドロップとクリック選択の実装 ---
-        dropZone.addEventListener('click', () => fileInput.click());
-
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-        });
-
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('dragover');
-        });
-
-        dropZone.addEventListener('drop', (e) => {
+        dropZone.onclick = () => fileInput.click();
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
+        dropZone.ondragleave = () => dropZone.classList.remove('dragover');
+        dropZone.ondrop = (e) => {
             e.preventDefault();
             dropZone.classList.remove('dragover');
             handleFiles(e.dataTransfer.files);
-        });
-
-        fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+        };
+        fileInput.onchange = () => handleFiles(fileInput.files);
 
         function handleFiles(files) {
             if (files.length === 0) return;
             const file = files[0];
-
             if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
                 alert("PDFファイルのみ選択可能です。");
-                fileInput.value = ''; 
-                fileNameDisplay.style.display = 'none';
                 return;
             }
-
+            // データ転送用ハック
             const dt = new DataTransfer();
             dt.items.add(file);
             fileInput.files = dt.files;
@@ -187,7 +237,7 @@
             fileNameDisplay.style.display = 'block';
         }
 
-        // --- 制限解除処理 ---
+        // --- 制限解除 ---
         async function unlockLimit() {
             const pwd = document.getElementById('passwordInput').value;
             if (!pwd) return alert("パスワードを入力してください");
@@ -201,37 +251,52 @@
                 const data = await res.json();
 
                 if (res.ok) {
-                    alert(data.message);
-                    updateUI(data.ui_data);
+                    alert("制限が解除されました！");
+                    appState.is_vip = true;
+                    saveLocalState();
+                    updateUI();
                 } else {
                     alert(data.message);
                 }
-            } catch(e) { alert("通信エラーが発生しました"); }
+            } catch(e) { alert("通信エラー"); }
         }
 
-        // --- 変換処理 ---
+        // --- 変換実行 ---
         async function startConversion() {
             if (fileInput.files.length === 0) return alert("PDFファイルを選択してください");
+            
+            // ローカルチェック
+            if (!appState.is_vip && appState.count >= DAILY_LIMIT) {
+                return alert("本日の利用上限に達しています。");
+            }
 
             runBtn.disabled = true;
-            runBtn.textContent = "処理準備中...";
-            logArea.innerHTML = ''; 
+            runBtn.textContent = "処理中...";
+            logArea.innerHTML = '';
 
             try {
-                const checkRes = await fetch('/api/increment', { method: 'POST' });
-                const checkData = await checkRes.json();
+                // 1. サーバーへカウントリクエスト
+                const res = await fetch('/api/increment', { method: 'POST' });
+                const data = await res.json();
 
-                if (!checkRes.ok) {
-                    updateUI(checkData.ui_data);
-                    alert(checkData.message); 
+                if (!res.ok) {
+                    // サーバー側で拒否された場合
+                    updateUI();
+                    alert(data.message || "上限エラー");
                     runBtn.disabled = false;
                     runBtn.textContent = "変換を実行";
                     return;
                 }
-                
-                updateUI(checkData.ui_data);
-                log("認証OK。変換処理を開始します...");
 
+                // 2. 成功したらローカルもカウントアップして保存
+                if (!appState.is_vip) {
+                    appState.count += 1;
+                    saveLocalState();
+                }
+                updateUI();
+                log("認証OK。処理を開始します...");
+
+                // 3. 変換処理
                 await processPdf(fileInput.files[0]);
 
             } catch(e) {
@@ -250,49 +315,32 @@
             const arrayBuffer = await file.arrayBuffer();
             const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
             const zip = new JSZip();
-            
             const canvas = document.getElementById('hiddenCanvas');
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             
-            const total = pdf.numPages;
-            
-            for (let i = 1; i <= total; i++) {
-                log(`ページ処理中... (${i}/${total})`);
-                
+            for (let i = 1; i <= pdf.numPages; i++) {
+                log(`ページ処理中... (${i}/${pdf.numPages})`);
                 const page = await pdf.getPage(i);
-                const scale = dpi / 72; 
-                const viewport = page.getViewport({ scale: scale });
-
-                canvas.width = viewport.width;
-                canvas.height = viewport.height;
-
+                const viewport = page.getViewport({ scale: dpi / 72 });
+                canvas.width = viewport.width; canvas.height = viewport.height;
                 await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
                 if (doTransparent) {
                     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     const d = imgData.data;
-                    
-                    // 白判定の精度改善 (250以上)
+                    // 透過精度改善 (250以上)
                     for (let j = 0; j < d.length; j += 4) {
-                        const r = d[j];
-                        const g = d[j+1];
-                        const b = d[j+2];
-                        
-                        if (r > 250 && g > 250 && b > 250) {
-                            d[j+3] = 0;
-                        }
+                        if (d[j] > 250 && d[j+1] > 250 && d[j+2] > 250) d[j+3] = 0;
                     }
                     ctx.putImageData(imgData, 0, 0);
                 }
 
                 const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-                const fileName = `page_${String(i).padStart(3, '0')}.png`;
-                zip.file(fileName, blob);
+                zip.file(`page_${String(i).padStart(3, '0')}.png`, blob);
             }
 
             log("ZIP圧縮中...");
             const content = await zip.generateAsync({ type: "blob" });
-            
             const link = document.createElement('a');
             link.href = URL.createObjectURL(content);
             link.download = file.name.replace('.pdf', '') + "_converted.zip";
