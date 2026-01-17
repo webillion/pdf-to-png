@@ -8,16 +8,18 @@ app = Flask(__name__, template_folder='templates')
 app.secret_key = os.urandom(24)
 
 # --- 設定 ---
+# 環境変数 VIP_PASSWORD がなければ "secret_password" になります
 VIP_PASSWORD = os.environ.get("VIP_PASSWORD", "secret_password")
 DAILY_LIMIT = 3
-DATABASE = 'usage.db'
 
-# --- データベース接続ヘルパー ---
+# RenderでのDBパス固定
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE = os.path.join(BASE_DIR, 'usage.db')
+
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
         db = g._database = sqlite3.connect(DATABASE)
-        # 辞書形式でデータを扱えるようにする
         db.row_factory = sqlite3.Row
     return db
 
@@ -28,11 +30,10 @@ def close_connection(exception):
         db.close()
 
 def init_db():
-    """テーブルが存在しない場合に作成する"""
     with app.app_context():
         db = get_db()
-        cursor = db.cursor()
-        cursor.execute('''
+        # テーブル作成（存在しない場合のみ）
+        db.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 ip TEXT PRIMARY KEY,
                 last_date TEXT,
@@ -42,84 +43,38 @@ def init_db():
         ''')
         db.commit()
 
-# アプリ起動時にDB初期化を実行（初回のみ）
+# アプリ起動時にDB初期化
 init_db()
 
-# --- ロジック ---
-
 def get_remote_ip():
-    """Renderなどのプロキシ環境下で正しいIPアドレスを取得"""
+    """Render環境下で正しいIPを取得"""
     if request.headers.getlist("X-Forwarded-For"):
         return request.headers.getlist("X-Forwarded-For")[0]
     return request.remote_addr
 
 def get_user_data(ip):
-    """ユーザーの利用状況をDBから取得・更新"""
+    """ユーザーデータを取得・日付更新があればリセット"""
     today_str = str(date.today())
     db = get_db()
-    cursor = db.cursor()
-    
-    # ユーザー検索
-    cursor.execute('SELECT * FROM users WHERE ip = ?', (ip,))
+    cursor = db.execute('SELECT * FROM users WHERE ip = ?', (ip,))
     user = cursor.fetchone()
     
     if user is None:
-        # 新規ユーザー
-        cursor.execute(
-            'INSERT INTO users (ip, last_date, count, is_vip) VALUES (?, ?, ?, ?)',
-            (ip, today_str, 0, 0)
-        )
+        # 新規
+        db.execute('INSERT INTO users (ip, last_date, count, is_vip) VALUES (?, ?, ?, ?)', 
+                   (ip, today_str, 0, 0))
         db.commit()
         return {'date': today_str, 'count': 0, 'is_vip': False}
-    else:
-        # 既存ユーザー：日付チェック
-        user_date = user['last_date']
-        user_count = user['count']
-        is_vip = bool(user['is_vip'])
-        
-        if user_date != today_str:
-            # 日付が変わっているのでカウントリセット（VIPは維持）
-            cursor.execute(
-                'UPDATE users SET last_date = ?, count = 0 WHERE ip = ?',
-                (today_str, ip)
-            )
-            db.commit()
-            return {'date': today_str, 'count': 0, 'is_vip': is_vip}
-        else:
-            # 当日データそのまま
-            return {'date': user_date, 'count': user_count, 'is_vip': is_vip}
-
-def make_ui_response(user_data):
-    """フロントエンドに返す表示データを作成"""
-    current = user_data['count']
-    is_vip = user_data['is_vip']
-    remaining = max(0, DAILY_LIMIT - current)
     
-    if is_vip:
-        return {
-            'text_count': "∞ (無制限)",
-            'text_status': "制限解除済み：無制限に使用可能です",
-            'badge_class': "badge-vip",
-            'is_locked': False,
-            'is_vip': True
-        }
+    # 日付が変わっているかチェック
+    if user['last_date'] != today_str:
+        # 日付更新＆カウントリセット（VIPは維持）
+        is_vip = user['is_vip']
+        db.execute('UPDATE users SET last_date = ?, count = 0 WHERE ip = ?', (today_str, ip))
+        db.commit()
+        return {'date': today_str, 'count': 0, 'is_vip': bool(is_vip)}
     
-    if remaining <= 0:
-        return {
-            'text_count': f"{current} / {DAILY_LIMIT}",
-            'text_status': "本日の上限に達しました。パスワードで解除してください。",
-            'badge_class': "badge-error",
-            'is_locked': True,
-            'is_vip': False
-        }
-    else:
-        return {
-            'text_count': f"{current} / {DAILY_LIMIT}",
-            'text_status': f"あと {remaining} 回 利用可能です",
-            'badge_class': "badge-success",
-            'is_locked': False,
-            'is_vip': False
-        }
+    return {'date': user['last_date'], 'count': user['count'], 'is_vip': bool(user['is_vip'])}
 
 # --- ルーティング ---
 
@@ -129,14 +84,14 @@ def index():
 
 @app.route('/api/status', methods=['GET'])
 def get_status():
-    """現在のステータスを返す"""
+    """現在の状態を返す"""
     ip = get_remote_ip()
     user = get_user_data(ip)
-    return jsonify(make_ui_response(user))
+    return jsonify(user)
 
 @app.route('/api/unlock', methods=['POST'])
 def unlock_limit():
-    """パスワード認証と制限解除"""
+    """パスワード認証"""
     ip = get_remote_ip()
     data = request.get_json() or {}
     input_pass = data.get('password', '')
@@ -145,41 +100,31 @@ def unlock_limit():
         db = get_db()
         db.execute('UPDATE users SET is_vip = 1 WHERE ip = ?', (ip,))
         db.commit()
-        
-        # 更新後のデータを取得
-        user = get_user_data(ip)
-        return jsonify({
-            'status': 'success',
-            'message': '認証成功：制限が解除されました。',
-            'ui_data': make_ui_response(user)
-        })
+        return jsonify({'status': 'success', 'message': '認証成功'})
     else:
         return jsonify({'status': 'error', 'message': 'パスワードが違います'}), 403
 
 @app.route('/api/increment', methods=['POST'])
 def increment_count():
-    """変換実行時にカウントを増やす"""
+    """カウント加算"""
     ip = get_remote_ip()
     user = get_user_data(ip)
     
+    # VIPならカウント無視でOK
     if user['is_vip']:
-        return jsonify({'status': 'ok', 'ui_data': make_ui_response(user)})
+        return jsonify({'status': 'ok', 'count': user['count'], 'is_vip': True})
     
+    # 制限チェック
     if user['count'] >= DAILY_LIMIT:
-        return jsonify({
-            'status': 'locked', 
-            'message': '利用上限に達しています。',
-            'ui_data': make_ui_response(user)
-        }), 403
-        
-    # カウントアップ
+        return jsonify({'status': 'locked', 'count': user['count'], 'is_vip': False}), 403
+    
+    # 加算
+    new_count = user['count'] + 1
     db = get_db()
-    db.execute('UPDATE users SET count = count + 1 WHERE ip = ?', (ip,))
+    db.execute('UPDATE users SET count = ? WHERE ip = ?', (new_count, ip))
     db.commit()
     
-    # 再取得して返す
-    updated_user = get_user_data(ip)
-    return jsonify({'status': 'ok', 'ui_data': make_ui_response(updated_user)})
+    return jsonify({'status': 'ok', 'count': new_count, 'is_vip': False})
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
