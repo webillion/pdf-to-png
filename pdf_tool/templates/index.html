@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-     <!-- Google tag (gtag.js) -->
+      <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -72,7 +72,7 @@
         <div class="status-card">
             <div style="font-size:0.9rem; color:#94a3b8;">本日の利用状況</div>
             <div id="count-display" class="count-display">--- / 3</div>
-            <span id="status-badge" class="badge">読み込み中...</span>
+            <span id="status-badge" class="badge">サーバー通信中...</span>
         </div>
 
         <div id="unlock-section" class="unlock-area">
@@ -109,87 +109,44 @@
     <canvas id="hiddenCanvas" style="display:none;"></canvas>
 
     <script>
-        // 定数
         const DAILY_LIMIT = 3;
-        const STORAGE_KEY = 'pdf_app_state_v3'; // キーを変更して古いデータをクリア
-
-        // 状態管理変数
-        let appState = {
-            date: new Date().toLocaleDateString(),
-            count: 0,
-            is_vip: false
-        };
-
-        // --- 初期化 ---
+        
+        // --- ページ読み込み時に必ずサーバーから最新データを取得 ---
         window.onload = async () => {
-            // 1. ローカルストレージから復元（最優先）
-            loadLocalState();
-            updateUI();
-
-            // 2. サーバーと同期（念のため）
             await syncWithServer();
         };
-
-        function loadLocalState() {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (raw) {
-                const saved = JSON.parse(raw);
-                const today = new Date().toLocaleDateString();
-                
-                // 日付が変わっていたらリセット（VIPは維持）
-                if (saved.date !== today) {
-                    appState = { date: today, count: 0, is_vip: saved.is_vip };
-                    saveLocalState();
-                } else {
-                    appState = saved;
-                }
-            }
-        }
-
-        function saveLocalState() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
-        }
 
         async function syncWithServer() {
             try {
                 const res = await fetch('/api/status');
                 if (res.ok) {
-                    const serverData = await res.json();
-                    // サーバー側がVIPならローカルもVIPに
-                    if (serverData.is_vip) appState.is_vip = true;
-                    // カウントの同期（大きい方を採用などルール決め可能だが、今回はローカル優先しつつ整合性チェック）
-                    // ここではサーバーの日付が新しければサーバーを優先する実装
-                    // ただし、Renderの再起動問題を考慮し、ローカルのカウントが大きければローカルを維持
-                    if (serverData.count > appState.count && serverData.date === appState.date) {
-                        appState.count = serverData.count;
-                    }
-                    saveLocalState();
-                    updateUI();
+                    const data = await res.json();
+                    updateUI(data.count, data.is_vip);
                 }
-            } catch (e) { console.error("Sync failed", e); }
+            } catch (e) { console.error("Server sync failed", e); }
         }
 
-        // --- UI更新 ---
-        function updateUI() {
+        // --- 画面表示の更新 ---
+        function updateUI(count, isVip) {
             const countDisplay = document.getElementById('count-display');
             const statusBadge = document.getElementById('status-badge');
             const unlockForm = document.getElementById('unlock-form');
             const vipMsg = document.getElementById('vip-message');
 
-            if (appState.is_vip) {
+            if (isVip) {
                 countDisplay.textContent = "∞ (無制限)";
                 statusBadge.textContent = "制限解除済み：無制限に使えます";
                 statusBadge.className = "badge badge-vip";
                 unlockForm.style.display = 'none';
                 vipMsg.style.display = 'block';
             } else {
-                countDisplay.textContent = `${appState.count} / ${DAILY_LIMIT}`;
+                countDisplay.textContent = `${count} / ${DAILY_LIMIT}`;
                 
-                if (appState.count >= DAILY_LIMIT) {
+                if (count >= DAILY_LIMIT) {
                     statusBadge.textContent = "本日の上限に達しました";
                     statusBadge.className = "badge badge-error";
                 } else {
-                    statusBadge.textContent = `あと ${DAILY_LIMIT - appState.count} 回 利用可能です`;
+                    statusBadge.textContent = `あと ${DAILY_LIMIT - count} 回 利用可能です`;
                     statusBadge.className = "badge badge-success";
                 }
                 
@@ -228,7 +185,6 @@
                 alert("PDFファイルのみ選択可能です。");
                 return;
             }
-            // データ転送用ハック
             const dt = new DataTransfer();
             dt.items.add(file);
             fileInput.files = dt.files;
@@ -237,7 +193,7 @@
             fileNameDisplay.style.display = 'block';
         }
 
-        // --- 制限解除 ---
+        // --- 制限解除処理 ---
         async function unlockLimit() {
             const pwd = document.getElementById('passwordInput').value;
             if (!pwd) return alert("パスワードを入力してください");
@@ -252,51 +208,40 @@
 
                 if (res.ok) {
                     alert("制限が解除されました！");
-                    appState.is_vip = true;
-                    saveLocalState();
-                    updateUI();
+                    await syncWithServer(); // 成功したら即同期
                 } else {
                     alert(data.message);
                 }
             } catch(e) { alert("通信エラー"); }
         }
 
-        // --- 変換実行 ---
+        // --- 変換実行処理 ---
         async function startConversion() {
             if (fileInput.files.length === 0) return alert("PDFファイルを選択してください");
-            
-            // ローカルチェック
-            if (!appState.is_vip && appState.count >= DAILY_LIMIT) {
-                return alert("本日の利用上限に達しています。");
-            }
 
             runBtn.disabled = true;
-            runBtn.textContent = "処理中...";
+            runBtn.textContent = "サーバー認証中...";
             logArea.innerHTML = '';
 
             try {
-                // 1. サーバーへカウントリクエスト
+                // 1. サーバーへカウント加算をリクエスト（これが最重要）
                 const res = await fetch('/api/increment', { method: 'POST' });
                 const data = await res.json();
 
                 if (!res.ok) {
-                    // サーバー側で拒否された場合
-                    updateUI();
+                    // サーバーから拒否されたら即停止
+                    updateUI(data.count, data.is_vip);
                     alert(data.message || "上限エラー");
                     runBtn.disabled = false;
                     runBtn.textContent = "変換を実行";
                     return;
                 }
 
-                // 2. 成功したらローカルもカウントアップして保存
-                if (!appState.is_vip) {
-                    appState.count += 1;
-                    saveLocalState();
-                }
-                updateUI();
+                // 2. 許可された場合、最新のカウントでUI更新
+                updateUI(data.count, data.is_vip);
                 log("認証OK。処理を開始します...");
 
-                // 3. 変換処理
+                // 3. 変換処理実行
                 await processPdf(fileInput.files[0]);
 
             } catch(e) {
@@ -328,7 +273,7 @@
                 if (doTransparent) {
                     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     const d = imgData.data;
-                    // 透過精度改善 (250以上)
+                    // 透過処理（閾値250で高精度化）
                     for (let j = 0; j < d.length; j += 4) {
                         if (d[j] > 250 && d[j+1] > 250 && d[j+2] > 250) d[j+3] = 0;
                     }
@@ -353,4 +298,3 @@
     </script>
 </body>
 </html>
-
