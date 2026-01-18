@@ -145,7 +145,7 @@
                 countDisplay.textContent = `${count} / ${DAILY_LIMIT}`;
                 
                 if (count >= DAILY_LIMIT) {
-                    statusBadge.textContent = "本日の上限に達しました";
+                    statusBadge.innerHTML = '本日の上限に達しました。<br><small>制限を無制限にするには<a href="あなたの決済ページURL" target="_blank" style="color: white; text-decoration: underline; margin-left: 8px;">こちら</a>からお支払いください</small>';
                     statusBadge.className = "badge badge-error";
                 } else {
                     statusBadge.textContent = `あと ${DAILY_LIMIT - count} 回 利用可能です`;
@@ -300,6 +300,7 @@
     </script>
 </body>
 </html>
+
 
 
 
