@@ -4,7 +4,8 @@ from datetime import date
 from flask import Flask, render_template, request, jsonify, g
 
 # テンプレートフォルダを明示的に指定
-app = Flask(__name__, template_folder='templates')
+# 【修正後】static_folder='static' を追加することで、フォルダとプログラムを紐付けます
+app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = os.urandom(24)
 
 # --- 設定 ---
@@ -147,3 +148,4 @@ def increment_count():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
