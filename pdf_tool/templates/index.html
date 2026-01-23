@@ -21,6 +21,7 @@
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; }
         .drag-active { border-color: #3b82f6; background-color: #eff6ff; }
+        /* 透過背景を表す市松模様 */
         .checkerboard {
             background-image: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%);
             background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
@@ -48,7 +49,6 @@
                 <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
         </div>
-
         <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer transition-all hover:border-blue-400 group">
             <input type="file" id="file-input" class="hidden" accept="application/pdf">
             <div class="mb-4 text-gray-400 group-hover:text-blue-500 transition-colors">
@@ -153,6 +153,7 @@
             resultArea.classList.remove('hidden');
             
             const zip = new JSZip();
+            // ▼▼▼ ユーザーの選択（透過するかどうか）を取得 ▼▼▼
             const isTransparent = transparentToggle.checked;
 
             try {
@@ -173,22 +174,28 @@
                     canvas.width = viewport.width;
                     canvas.height = viewport.height;
 
+                    // ▼▼▼ 透過設定に応じた背景処理 ▼▼▼
                     if (!isTransparent) {
+                        // 透過オフ：背景を白で塗りつぶす
                         context.fillStyle = 'white';
                         context.fillRect(0, 0, canvas.width, canvas.height);
                     } else {
+                        // 透過オン：背景を透明にする
                         context.clearRect(0, 0, canvas.width, canvas.height);
                     }
 
                     await page.render({
                         canvasContext: context,
                         viewport: viewport,
+                        // PDFレンダラーにも背景設定を伝える
                         background: isTransparent ? 'rgba(0,0,0,0)' : 'rgb(255,255,255)'
                     }).promise;
+                    // ▲▲▲ 透過設定に応じた背景処理 ここまで ▲▲▲
 
                     // プレビュー表示用
                     const imgData = canvas.toDataURL('image/png');
                     const imgEl = document.createElement('div');
+                    // 透過時は市松模様の背景をつける
                     imgEl.className = `p-2 border rounded-lg ${isTransparent ? 'checkerboard' : 'bg-white'}`;
                     imgEl.innerHTML = `<img src="${imgData}" class="w-full h-auto shadow-sm">`;
                     resultArea.appendChild(imgEl);
