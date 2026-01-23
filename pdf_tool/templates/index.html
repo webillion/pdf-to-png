@@ -3,36 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クリアスナップPDF｜PDFを300dpi高画質PNGへ変換　背景透過・ブラウザ完結で安全</title>
+    <title>AlphaSnap｜PDFを高画質PNGへ一括変換</title>
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:url" content="https://pdf-to-png-lcq9.onrender.com" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="PDFを300dpi高画質PNGへ変換｜背景透過・ブラウザ完結で安全" />
-    <meta property="og:description" content="動画編集に最適！PDFをサーバーに送らず、ブラウザ内で300dpiの高画質PNGに変換。背景透過にも対応。" />
-    <meta property="og:site_name" content="高画質PDF変換ツール" />
+    <meta property="og:title" content="PDFを300dpi高画質PNGへ変換｜AlphaSnap" />
+    <meta property="og:description" content="動画編集に最適。ブラウザ完結で安全に高画質PNGへ変換。背景透過・一括ダウンロード対応。" />
     <meta property="og:image" content="https://pdf-to-png-lcq9.onrender.com/static/og-image.png" />
-    <meta name="twitter:image" content="https://pdf-to-png-lcq9.onrender.com/static/og-image.png" />
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    </script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; }
         .drag-active { border-color: #3b82f6; background-color: #eff6ff; }
-        /* 透過背景を表す市松模様 */
         .checkerboard {
-            background-image:
-                linear-gradient(45deg, #eee 25%, transparent 25%),
-                linear-gradient(-45deg, #eee 25%, transparent 25%),
-                linear-gradient(45deg, transparent 75%, #eee 75%),
-                linear-gradient(-45deg, transparent 75%, #eee 75%);
-            background-size: 20px 20px;
-            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-image: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%);
+            background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
         }
     </style>
 </head>
@@ -40,67 +31,61 @@
 
     <header class="text-center mb-10 max-w-2xl">
         <h1 class="text-4xl font-bold mb-4 text-gray-900">AlphaSnap <span class="text-blue-600 text-2xl align-top">beta</span></h1>
-        <p class="text-lg text-gray-600">
-            動画編集・資料作成に最適。<br>
-            PDFを<span class="font-bold text-blue-600">300dpiの高画質</span>で、<span class="font-bold text-blue-600">背景透過PNG</span>に一瞬で変換。
-        </p>
-        <div class="mt-4 flex justify-center gap-4 text-sm text-gray-500">
-            <div class="flex items-center"><i data-lucide="shield-check" class="w-4 h-4 mr-1"></i>サーバー送信なし</div>
-            <div class="flex items-center"><i data-lucide="zap" class="w-4 h-4 mr-1"></i>完全ブラウザ処理</div>
-        </div>
-        
-        <div id="status-area" class="mt-6 inline-block bg-white px-6 py-2 rounded-full shadow-sm border border-gray-200">
+        <div id="status-area" class="mt-2 inline-block bg-white px-6 py-2 rounded-full shadow-sm border border-gray-200">
             <span id="usage-text" class="font-bold text-gray-700">読み込み中...</span>
         </div>
     </header>
 
     <main class="w-full max-w-xl bg-white p-8 rounded-2xl shadow-xl">
         
+        <div class="mb-6 flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100">
+            <div class="flex items-center gap-2">
+                <i data-lucide="layers" class="text-blue-600 w-5 h-5"></i>
+                <span class="font-bold text-gray-700">背景を透過する</span>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="transparent-toggle" class="sr-only peer" checked>
+                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+        </div>
+
         <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer transition-all hover:border-blue-400 group">
             <input type="file" id="file-input" class="hidden" accept="application/pdf">
             <div class="mb-4 text-gray-400 group-hover:text-blue-500 transition-colors">
                 <i data-lucide="upload-cloud" class="w-16 h-16 mx-auto"></i>
             </div>
-            <p class="text-xl font-medium text-gray-700 mb-2">PDFをここにドロップ</p>
-            <p class="text-sm text-gray-500">またはクリックしてファイルを選択</p>
+            <p class="text-xl font-medium text-gray-700 mb-2">PDFをドロップ</p>
             <p id="file-name" class="mt-4 text-blue-600 font-bold hidden"></p>
         </div>
 
-        <button id="convert-btn" class="w-full mt-8 bg-gray-900 hover:bg-gray-800 text-white font-bold py-4 rounded-xl text-lg shadow-lg transition-transform transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-            <i data-lucide="image" class="w-5 h-5"></i>
-            PNGに変換する
+        <button id="convert-btn" class="w-full mt-8 bg-gray-900 hover:bg-gray-800 text-white font-bold py-4 rounded-xl text-lg shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">
+            <i data-lucide="file-archive" class="w-5 h-5"></i>
+            変換してZIP保存
         </button>
 
         <div id="progress-container" class="hidden mt-6">
             <div class="w-full bg-gray-200 rounded-full h-2.5">
                 <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
             </div>
-            <p id="progress-text" class="text-center text-sm text-gray-600 mt-2">準備中...</p>
+            <p id="progress-text" class="text-center text-sm text-gray-600 mt-2">処理中...</p>
         </div>
 
-        <div id="result-area" class="hidden mt-8 space-y-6"></div>
+        <div id="result-area" class="hidden mt-8 grid grid-cols-2 gap-4">
+            </div>
     </main>
 
     <div id="vip-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 backdrop-blur-sm">
         <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full text-center m-4">
-            <div class="mb-4 text-yellow-500 flex justify-center">
-                <i data-lucide="lock" class="w-12 h-12"></i>
-            </div>
-            <h3 class="text-2xl font-bold mb-2">本日の無料回数は終了しました</h3>
-            <p class="text-gray-600 mb-6">解除パスワードを入力すると、無制限で利用できます。</p>
-            
-            <input type="password" id="vip-password" placeholder="パスワードを入力" 
-                   class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 outline-none">
-            
+            <h3 class="text-2xl font-bold mb-6">無料回数が終了しました</h3>
+            <input type="password" id="vip-password" placeholder="パスワードを入力" class="w-full p-3 border rounded-lg mb-4 outline-none focus:ring-2 focus:ring-blue-500">
             <div class="flex gap-3">
-                <button onclick="closeModal()" class="flex-1 py-3 text-gray-600 font-bold hover:bg-gray-100 rounded-lg">閉じる</button>
-                <button onclick="unlockVip()" class="flex-1 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-md">解除する</button>
+                <button onclick="closeModal()" class="flex-1 py-3 text-gray-500 font-bold">閉じる</button>
+                <button onclick="unlockVip()" class="flex-1 py-3 bg-blue-600 text-white font-bold rounded-lg">解除</button>
             </div>
         </div>
     </div>
 
     <script>
-        // アイコン初期化
         lucide.createIcons();
 
         const dropZone = document.getElementById('drop-zone');
@@ -112,17 +97,13 @@
         const progressText = document.getElementById('progress-text');
         const resultArea = document.getElementById('result-area');
         const vipModal = document.getElementById('vip-modal');
+        const transparentToggle = document.getElementById('transparent-toggle');
 
         let currentFile = null;
 
-        // --- ドラッグ＆ドロップ処理 ---
         dropZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => handleFileSelect(e.target.files[0]));
-
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('drag-active');
-        });
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-active'); });
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-active'));
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
@@ -135,195 +116,139 @@
                 currentFile = file;
                 fileNameDisplay.textContent = `選択中: ${file.name}`;
                 fileNameDisplay.classList.remove('hidden');
-                resultArea.innerHTML = ''; 
-                resultArea.classList.add('hidden');
-            } else {
-                alert('PDFファイルのみ対応しています。');
             }
         }
 
-        // --- 変換ボタンクリック時の処理 ---
         convertBtn.addEventListener('click', async () => {
-            // 【修正】ここで確実にファイルがあるかチェックする
-            if (!currentFile) {
-                alert('PDFファイルを選択してください。');
-                return;
-            }
-
+            if (!currentFile) { alert('PDFを選択してください。'); return; }
             convertBtn.disabled = true;
 
             try {
-                // 1. まず現在のステータスを確認
                 const statusRes = await fetch('/api/status');
                 const statusData = await statusRes.json();
 
-                // 2. VIPなら即座に変換へ
                 if (statusData.is_vip) {
-                    await startConversion(currentFile);
+                    await processFiles(currentFile);
                 } else {
-                    // 3. 一般ならカウント加算を試みる
                     const incRes = await fetch('/api/increment', { method: 'POST' });
-                    
                     if (incRes.ok) {
-                        // 成功（回数内）なら変換へ
                         const incData = await incRes.json();
                         updateStatusDisplay(incData);
-                        await startConversion(currentFile);
+                        await processFiles(currentFile);
                     } else {
-                        // 失敗（制限到達）ならモーダル表示
-                        const errorData = await incRes.json();
-                        if (errorData.status === 'locked') {
-                            updateStatusDisplay(errorData); // 表示を「終了」にする
-                            vipModal.classList.remove('hidden');
-                            vipModal.classList.add('flex');
-                        } else {
-                            alert('エラーが発生しました。');
-                        }
+                        vipModal.classList.remove('hidden');
+                        vipModal.classList.add('flex');
                         convertBtn.disabled = false;
                     }
                 }
             } catch (err) {
-                console.error(err);
-                alert('通信エラーが発生しました。');
+                alert('通信エラー');
                 convertBtn.disabled = false;
             }
         });
 
-        // --- 実際の変換ロジック（共通化） ---
-        async function startConversion(file) {
+        async function processFiles(file) {
             progressContainer.classList.remove('hidden');
-            progressText.textContent = 'PDFを読み込み中...';
-            progressBar.style.width = '10%';
+            resultArea.innerHTML = '';
+            resultArea.classList.remove('hidden');
+            
+            const zip = new JSZip();
+            const isTransparent = transparentToggle.checked;
 
             try {
                 const arrayBuffer = await file.arrayBuffer();
                 const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-                
-                resultArea.innerHTML = '';
-                resultArea.classList.remove('hidden');
-
                 const totalPages = pdf.numPages;
 
                 for (let i = 1; i <= totalPages; i++) {
                     progressText.textContent = `${i} / ${totalPages} ページを変換中...`;
-                    const progress = (i / totalPages) * 100;
-                    progressBar.style.width = `${progress}%`;
+                    progressBar.style.width = `${(i / totalPages) * 90}%`;
 
                     const page = await pdf.getPage(i);
-                    const scale = 300 / 72; // 300dpi相当
-                    const viewport = page.getViewport({ scale: scale });
+                    const scale = 300 / 72;
+                    const viewport = page.getViewport({ scale });
 
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
                     canvas.width = viewport.width;
                     canvas.height = viewport.height;
 
-                    // 背景を透明にする設定（重要）
-                    context.clearRect(0, 0, canvas.width, canvas.height);
+                    if (!isTransparent) {
+                        context.fillStyle = 'white';
+                        context.fillRect(0, 0, canvas.width, canvas.height);
+                    } else {
+                        context.clearRect(0, 0, canvas.width, canvas.height);
+                    }
 
                     await page.render({
                         canvasContext: context,
                         viewport: viewport,
-                        background: 'rgba(0,0,0,0)' // 完全透過
+                        background: isTransparent ? 'rgba(0,0,0,0)' : 'rgb(255,255,255)'
                     }).promise;
 
-                    // 画像生成
+                    // プレビュー表示用
                     const imgData = canvas.toDataURL('image/png');
-                    
-                    // 結果表示カードの作成
-                    const card = document.createElement('div');
-                    card.className = "bg-gray-100 p-4 rounded-xl border border-gray-200";
-                    
-                    const imgWrapper = document.createElement('div');
-                    imgWrapper.className = "checkerboard rounded-lg overflow-hidden border border-gray-300 shadow-sm mb-3";
-                    
-                    const img = document.createElement('img');
-                    img.src = imgData;
-                    img.className = "w-full h-auto block";
-                    
-                    const downloadBtn = document.createElement('a');
-                    downloadBtn.href = imgData;
-                    downloadBtn.download = `${file.name.replace('.pdf', '')}_page${i}.png`;
-                    downloadBtn.className = "block w-full bg-blue-600 text-white text-center font-bold py-3 rounded-lg hover:bg-blue-700 transition";
-                    downloadBtn.innerHTML = `<i data-lucide="download" class="inline w-4 h-4 mr-1"></i> ページ${i}を保存`;
+                    const imgEl = document.createElement('div');
+                    imgEl.className = `p-2 border rounded-lg ${isTransparent ? 'checkerboard' : 'bg-white'}`;
+                    imgEl.innerHTML = `<img src="${imgData}" class="w-full h-auto shadow-sm">`;
+                    resultArea.appendChild(imgEl);
 
-                    imgWrapper.appendChild(img);
-                    card.appendChild(imgWrapper);
-                    card.appendChild(downloadBtn);
-                    resultArea.appendChild(card);
-                    
-                    // アイコン再描画
-                    lucide.createIcons();
+                    // ZIP用に追加 (blob変換)
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                    zip.file(`${i}.png`, blob);
                 }
 
-                progressText.textContent = '変換完了！';
-                confettiEffect(); // お祝いエフェクト（あれば）
+                progressText.textContent = 'ZIPを作成してダウンロード中...';
+                const content = await zip.generateAsync({ type: "blob" });
+                
+                // 自動ダウンロード
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(content);
+                link.download = `converted_images.zip`;
+                link.click();
+
+                progressText.textContent = '完了しました！';
+                progressBar.style.width = '100%';
 
             } catch (e) {
-                console.error(e);
-                alert('変換中にエラーが発生しました。');
+                alert('変換エラー');
             } finally {
                 convertBtn.disabled = false;
             }
         }
 
-        // --- ステータス・API関連 ---
         async function checkStatus() {
-            try {
-                const res = await fetch('/api/status');
-                const data = await res.json();
-                updateStatusDisplay(data);
-            } catch (e) {
-                console.error("Status check failed", e);
-            }
+            const res = await fetch('/api/status');
+            const data = await res.json();
+            updateStatusDisplay(data);
         }
 
         function updateStatusDisplay(data) {
             const statusText = document.getElementById('usage-text');
             if (data.is_vip) {
-                statusText.innerHTML = '<span class="text-yellow-600 font-bold">✨ VIPモード (無制限)</span>';
+                statusText.innerHTML = '✨ VIPモード (無制限)';
             } else {
-                const remaining = 3 - data.count; // 3回制限
-                // 3回使い切った（残り0回）の時の表示
-                if (remaining <= 0) {
-                    statusText.innerHTML = `残り回数: <span class="text-red-600 font-bold">0回</span> (リセット待ち)`;
-                } else {
-                    statusText.innerHTML = `残り回数: <span class="text-blue-600 font-bold">${remaining}回</span> / 3回`;
-                }
+                statusText.innerHTML = `残り回数: ${3 - data.count}回 / 3回`;
             }
         }
 
-        // VIP解除処理
         async function unlockVip() {
             const password = document.getElementById('vip-password').value;
-            try {
-                const res = await fetch('/api/unlock', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ password: password })
-                });
-                const data = await res.json();
-                
-                if (data.status === 'success') {
-                    alert('認証成功！無制限モードになりました。');
-                    closeModal();
-                    checkStatus(); // ステータス更新
-                } else {
-                    alert('パスワードが違います。');
-                }
-            } catch (e) {
-                alert('通信エラー');
+            const res = await fetch('/api/unlock', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ password })
+            });
+            if ((await res.json()).status === 'success') {
+                closeModal();
+                checkStatus();
+            } else {
+                alert('不一致');
             }
         }
 
-        function closeModal() {
-            vipModal.classList.add('hidden');
-            vipModal.classList.remove('flex');
-        }
-
-        // 初回ロード時にステータス確認
+        function closeModal() { vipModal.classList.add('hidden'); vipModal.classList.remove('flex'); }
         checkStatus();
-
     </script>
 </body>
 </html>
