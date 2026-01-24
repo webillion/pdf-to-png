@@ -2,14 +2,9 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>AlphaSnap Turbo Pro | v3.0</title>
+    <title>AlphaSnap Turbo Pro | v3.1 SmartView</title>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-MTB190WE2E');
-    </script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-MTB190WE2E');</script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
@@ -21,25 +16,19 @@
             background-image: linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%);
             background-size: 10px 10px; background-color: #f3f4f6;
         }
-        /* 変換中のガード */
         .processing * { pointer-events: none !important; }
         .processing .allow-cancel { pointer-events: auto !important; cursor: pointer !important; }
         
-        /* プログレスバーの光彩 */
-        #progress-bar {
-            box-shadow: 0 0 12px rgba(59, 130, 246, 0.6);
-            transition: width 0.3s ease-out;
-        }
-
+        /* プレビューグリッドの最適化 */
         #result-area {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 1rem;
             align-content: start;
         }
         
-        .img-reveal { animation: reveal 0.4s cubic-bezier(0, 0, 0.2, 1) forwards; }
-        @keyframes reveal { from { opacity: 0; transform: translateY(10px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .img-reveal { animation: reveal 0.3s ease-out forwards; }
+        @keyframes reveal { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
         
         #ui-overlay { display: none; }
         .processing #ui-overlay { display: block; position: fixed; inset: 0; z-index: 100; cursor: not-allowed; }
@@ -50,93 +39,104 @@
     <div id="ui-overlay"></div>
 
     <div class="flex h-screen w-full">
-        <aside class="w-[400px] h-full bg-slate-900 border-r border-white/5 p-8 flex flex-col z-40 relative shadow-2xl">
-            <div class="mb-10 text-center">
-                <h1 class="text-3xl font-black italic tracking-tighter text-white flex items-center justify-center gap-2">
+        <aside class="w-[360px] h-full bg-slate-900 border-r border-white/5 p-6 flex flex-col z-40 relative shadow-2xl">
+            <div class="mb-8 text-center">
+                <h1 class="text-2xl font-black italic tracking-tighter text-white flex items-center justify-center gap-2">
                     <i data-lucide="zap" class="text-blue-500 fill-blue-500"></i> AlphaSnap
                 </h1>
-                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Turbo Engine v3.0</p>
+                <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Smart Engine v3.1</p>
             </div>
 
-            <div id="status-display" class="mb-8 p-4 bg-slate-950 rounded-2xl border border-white/5 text-center">
-                <span id="usage-text" class="text-sm font-bold tracking-tight text-slate-400">システム準備完了</span>
+            <div id="status-display" class="mb-6 p-4 bg-slate-950 rounded-2xl border border-white/5 text-center">
+                <span id="usage-text" class="text-xs font-bold tracking-tight text-slate-400 italic">SYSTEM READY</span>
             </div>
 
-            <div class="space-y-6">
-                <div class="p-5 bg-slate-800/50 border border-white/5 rounded-2xl flex items-center justify-between">
-                    <span class="font-bold text-sm text-slate-200">背景透過（白を除去）</span>
+            <div class="space-y-4">
+                <div class="p-4 bg-slate-800/50 border border-white/5 rounded-2xl flex items-center justify-between">
+                    <span class="font-bold text-xs text-slate-200">背景を透明にする</span>
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" id="transparent-toggle" class="sr-only peer" checked>
-                        <div class="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                        <div class="w-10 h-5 bg-slate-700 rounded-full peer peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                     </label>
                 </div>
 
-                <div id="drop-zone" class="border-2 border-dashed border-slate-700 rounded-2xl p-8 text-center cursor-pointer hover:border-blue-500 transition-all">
+                <div id="drop-zone" class="border-2 border-dashed border-slate-700 rounded-2xl p-6 text-center cursor-pointer hover:border-blue-500 transition-all bg-slate-950/30">
                     <input type="file" id="file-input" class="hidden" accept="application/pdf">
-                    <i data-lucide="file-up" class="w-10 h-10 mx-auto mb-3 text-slate-600"></i>
-                    <p class="text-[10px] font-black text-slate-500 uppercase">PDFをドロップして選択</p>
+                    <i data-lucide="upload-cloud" class="w-8 h-8 mx-auto mb-2 text-slate-600"></i>
+                    <p class="text-[9px] font-black text-slate-500 uppercase">ファイルをドロップ</p>
                     <p id="file-name" class="mt-2 text-xs text-blue-400 font-bold truncate hidden"></p>
                 </div>
 
-                <div id="progress-container" class="bg-slate-950/50 p-4 rounded-2xl border border-white/5 hidden">
-                    <div class="flex justify-between text-[10px] font-black mb-2 px-1">
-                        <span id="progress-text" class="text-blue-400 uppercase tracking-widest">変換準備中</span>
+                <div id="progress-container" class="bg-slate-950 p-4 rounded-2xl border border-blue-500/20 hidden">
+                    <div class="flex justify-between text-[9px] font-black mb-2 uppercase tracking-widest">
+                        <span id="progress-text" class="text-blue-400">Processing...</span>
                         <span id="percentage-text" class="text-white">0%</span>
                     </div>
-                    <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-                        <div id="progress-bar" class="bg-blue-500 h-full w-0"></div>
+                    <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                        <div id="progress-bar" class="bg-blue-500 h-full w-0 transition-all duration-300"></div>
                     </div>
                 </div>
 
-                <div class="relative h-16">
-                    <button id="convert-btn" class="absolute inset-0 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl text-lg shadow-2xl transition-all flex items-center justify-center gap-3">
-                        <i data-lucide="play" class="fill-current"></i> 変換・保存を開始
+                <div class="relative h-14">
+                    <button id="convert-btn" class="absolute inset-0 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl text-md shadow-xl transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="play" class="w-5 h-5 fill-current"></i> 変換を開始
                     </button>
-                    <button id="cancel-btn" class="allow-cancel hidden absolute inset-0 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl text-lg shadow-2xl transition-all flex items-center justify-center gap-3">
-                        <i data-lucide="square" class="fill-current"></i> 中断する
+                    <button id="cancel-btn" class="allow-cancel hidden absolute inset-0 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl text-md shadow-xl transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="square" class="w-5 h-5 fill-current"></i> 中断
                     </button>
                 </div>
             </div>
 
-            <footer class="mt-auto pt-8 border-t border-white/5 text-[9px] text-slate-600 flex justify-between uppercase font-bold tracking-widest">
-                <span>Progress Engine Active</span>
-                <span>2026 Edition</span>
+            <footer class="mt-auto pt-6 border-t border-white/5 text-[8px] text-slate-600 flex justify-between uppercase font-bold">
+                <span>Memory Optimized</span>
+                <span>2026 Build</span>
             </footer>
         </aside>
 
         <main class="flex-1 h-full relative flex flex-col bg-slate-950">
-            <div id="preview-header" class="p-6 border-b border-white/5 flex justify-between items-center bg-slate-950/50 backdrop-blur-md hidden">
-                <h2 class="text-sm font-black text-slate-500 uppercase tracking-widest italic">Live Preview</h2>
-                <div id="page-counter" class="text-[10px] font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-400 uppercase">0 Pages</div>
+            <div id="live-monitor" class="h-48 border-b border-white/5 bg-slate-900/50 p-4 flex items-center gap-6 hidden">
+                <div id="spotlight-box" class="h-full aspect-[1/1.4] rounded border border-white/10 shadow-2xl overflow-hidden checkerboard relative">
+                    <img id="spotlight-img" class="w-full h-full object-contain">
+                    <div id="spotlight-label" class="absolute top-1 left-1 bg-blue-600 text-[8px] px-1 rounded font-black text-white italic tracking-tighter">NOW</div>
+                </div>
+                <div class="flex-1">
+                    <p class="text-[10px] text-slate-500 font-bold uppercase mb-1">Current Task</p>
+                    <h3 id="current-page-num" class="text-4xl font-black text-white italic tracking-tighter">PAGE #---</h3>
+                    <p id="system-load" class="text-[10px] text-blue-500/50 font-bold mt-1">Multi-core Processing Active...</p>
+                </div>
             </div>
 
-            <div id="result-area" class="flex-1 overflow-y-auto p-10"></div>
+            <div id="preview-header" class="p-4 border-b border-white/5 flex justify-between items-center bg-slate-950/80 backdrop-blur hidden">
+                <h2 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] italic">Archive Gallery (Sampled)</h2>
+                <div id="page-counter" class="text-[10px] font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-400">---</div>
+            </div>
+
+            <div id="result-area" class="flex-1 overflow-y-auto p-6 custom-scroll"></div>
 
             <div id="complete-screen" class="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center hidden">
-                <div class="w-20 h-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mb-6 border border-green-500/30">
-                    <i data-lucide="check" class="w-10 h-10"></i>
+                <div class="w-16 h-16 bg-blue-500/20 text-blue-500 rounded-full flex items-center justify-center mb-4 border border-blue-500/30">
+                    <i data-lucide="check" class="w-8 h-8"></i>
                 </div>
-                <h2 class="text-4xl font-black text-white mb-2 italic tracking-tighter">SUCCESS!</h2>
-                <p class="text-slate-400 font-bold mb-8">ZIPファイルの作成と保存が完了しました</p>
-                <button onclick="location.reload()" class="px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-xl transition-all flex items-center gap-2">
-                    <i data-lucide="refresh-cw" class="w-4 h-4"></i> 次のファイルを処理
+                <h2 class="text-3xl font-black text-white italic">TASK COMPLETE</h2>
+                <p class="text-slate-500 text-xs mb-6 font-bold uppercase">ZIP file has been saved.</p>
+                <button onclick="location.reload()" class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-lg text-sm flex items-center gap-2">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i> 新しいファイルを処理
                 </button>
             </div>
 
             <div id="empty-state" class="flex-1 flex flex-col items-center justify-center text-slate-900">
-                <i data-lucide="image" class="w-32 h-32 mb-4 opacity-10"></i>
-                <p class="text-xl font-black opacity-10 uppercase tracking-widest italic">Wait for Input...</p>
+                <i data-lucide="monitor" class="w-24 h-24 mb-4 opacity-5"></i>
+                <p class="text-sm font-black opacity-5 uppercase tracking-[0.3em] italic">Ready for Processing</p>
             </div>
         </main>
     </div>
 
     <div id="vip-modal" class="fixed inset-0 bg-slate-950/95 hidden items-center justify-center z-[200] backdrop-blur-xl">
-        <div class="bg-white p-12 rounded-[40px] max-w-sm w-full text-center text-slate-900 shadow-2xl">
-            <h3 class="text-2xl font-black mb-2">無料枠終了</h3>
-            <p class="text-slate-500 text-sm mb-8 font-bold">本日の変換上限に達しました。<br>パスコードを入力してください。</p>
-            <input type="password" id="vip-password" placeholder="Passcode" class="w-full p-4 bg-slate-100 border-2 border-slate-100 rounded-2xl mb-4 text-center font-bold outline-none focus:border-blue-500">
-            <button onclick="unlockVip()" class="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:bg-blue-700">認証して解除</button>
-            <button onclick="closeModal()" class="mt-4 text-slate-400 text-xs font-bold uppercase tracking-widest">閉じる</button>
+        <div class="bg-white p-10 rounded-3xl max-w-xs w-full text-center text-slate-900 shadow-2xl">
+            <h3 class="text-xl font-black mb-4">回数制限</h3>
+            <input type="password" id="vip-password" placeholder="Passcode" class="w-full p-3 bg-slate-100 border-2 border-slate-100 rounded-xl mb-4 text-center font-bold outline-none">
+            <button onclick="unlockVip()" class="w-full py-3 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-700">解除</button>
+            <button onclick="closeModal()" class="mt-4 text-slate-400 text-[10px] font-black uppercase tracking-widest">Close</button>
         </div>
     </div>
 
@@ -153,10 +153,13 @@
         const percentageText = document.getElementById('percentage-text');
         const resultArea = document.getElementById('result-area');
         const transparentToggle = document.getElementById('transparent-toggle');
+        const liveMonitor = document.getElementById('live-monitor');
+        const spotlightImg = document.getElementById('spotlight-img');
+        const currentPageNum = document.getElementById('current-page-num');
 
         let currentFile = null;
         let isCancelling = false;
-        let currentProcessId = 0; 
+        let currentProcessId = 0;
 
         dropZone.onclick = () => fileInput.click();
         fileInput.onchange = (e) => handleFileSelect(e.target.files[0]);
@@ -169,20 +172,19 @@
                 currentFile = file;
                 fileNameDisplay.textContent = file.name;
                 fileNameDisplay.classList.remove('hidden');
-                document.getElementById('empty-state').classList.remove('hidden');
-                resultArea.innerHTML = ''; 
-                document.getElementById('preview-header').classList.add('hidden');
+                resultArea.innerHTML = '';
             }
         }
 
         cancelBtn.onclick = () => {
             isCancelling = true;
-            currentProcessId++; 
+            currentProcessId++;
             document.body.classList.remove('processing');
             convertBtn.classList.remove('hidden');
             cancelBtn.classList.add('hidden');
             progressContainer.classList.add('hidden');
-            alert('変換を中断しました。');
+            liveMonitor.classList.add('hidden');
+            alert('中断しました。');
         };
 
         convertBtn.onclick = async () => {
@@ -198,24 +200,15 @@
                 document.body.classList.add('processing');
                 convertBtn.classList.add('hidden');
                 cancelBtn.classList.remove('hidden');
-                document.getElementById('complete-screen').classList.add('hidden');
                 document.getElementById('empty-state').classList.add('hidden');
+                document.getElementById('complete-screen').classList.add('hidden');
                 document.getElementById('preview-header').classList.remove('hidden');
-                
-                // プログレスバーを表示状態にする
+                liveMonitor.classList.remove('hidden');
                 progressContainer.classList.remove('hidden');
-                progressBar.style.width = '0%';
-                percentageText.textContent = '0%';
                 
                 await processTurbo(currentFile);
-            } catch (e) { resetUI(); }
+            } catch (e) { console.error(e); }
         };
-
-        function resetUI() {
-            document.body.classList.remove('processing');
-            convertBtn.classList.remove('hidden');
-            cancelBtn.classList.add('hidden');
-        }
 
         function fastRemoveWhite(ctx, width, height) {
             const imgData = ctx.getImageData(0, 0, width, height);
@@ -237,11 +230,14 @@
             const arrayBuffer = await file.arrayBuffer();
             const pdf = await pdfjsLib.getDocument({data: arrayBuffer, verbosity: 0}).promise;
             const total = pdf.numPages;
-            document.getElementById('page-counter').textContent = `${total} PAGES`;
+            document.getElementById('page-counter').textContent = `${total} TOTAL PAGES`;
 
+            // 【アイディア】表示する最大枚数を50枚に制限して計算
+            const maxPreviews = 50;
+            const sampleStep = Math.max(1, Math.floor(total / maxPreviews));
             const previewIndices = [];
             for (let i = 1; i <= total; i++) {
-                if (i === 1 || i % 10 === 0 || i === total) previewIndices.push(i);
+                if (i === 1 || i % sampleStep === 0 || i === total) previewIndices.push(i);
             }
 
             const concurrency = Math.min(navigator.hardwareConcurrency || 4, 8);
@@ -258,7 +254,6 @@
                         const canvas = document.createElement('canvas');
                         canvas.width = viewport.width; canvas.height = viewport.height;
                         const ctx = canvas.getContext('2d', { alpha: true });
-
                         await page.render({ canvasContext: ctx, viewport, background: 'transparent' }).promise;
                         
                         if (isCancelling || thisProcessId !== currentProcessId) return;
@@ -266,28 +261,32 @@
 
                         const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
                         zip.file(`${pageNum}.png`, blob);
+                        const url = URL.createObjectURL(blob);
 
+                        // 【改善】「スポットライト」に常に最新の1枚を表示
+                        spotlightImg.src = url;
+                        currentPageNum.textContent = `PAGE #${pageNum}`;
+
+                        // 【改善】間引きされたプレビューのみをグリッドに追加
                         if (previewIndices.includes(pageNum)) {
-                            const url = URL.createObjectURL(blob);
                             const div = document.createElement('div');
                             div.id = `preview-${pageNum}`;
-                            div.className = `img-reveal aspect-[1/1.4] rounded-lg overflow-hidden relative shadow-2xl border border-white/10 ${isTransparent ? 'checkerboard' : 'bg-white'}`;
+                            div.className = `img-reveal aspect-[1/1.4] rounded-lg overflow-hidden relative shadow-lg border border-white/5 ${isTransparent ? 'checkerboard' : 'bg-white'}`;
                             div.innerHTML = `
                                 <img src="${url}" class="w-full h-full object-contain">
-                                <div class="absolute top-2 left-2 bg-black/70 backdrop-blur-md text-[9px] px-2 py-0.5 rounded font-black text-white border border-white/10">#${pageNum}</div>
+                                <div class="absolute bottom-1 left-1 bg-black/80 text-[7px] px-1 rounded font-black text-white">#${pageNum}</div>
                             `;
+                            // 常に正しい順序で挿入
                             const children = Array.from(resultArea.children);
                             const nextSibling = children.find(child => parseInt(child.id.replace('preview-', '')) > pageNum);
-                            if (nextSibling) resultArea.insertBefore(div, nextSibling);
-                            else resultArea.appendChild(div);
+                            resultArea.insertBefore(div, nextSibling || null);
                         }
 
-                        // プログレスバーの更新
                         processed++;
                         const percent = Math.floor((processed / total) * 100);
                         progressBar.style.width = percent + '%';
                         percentageText.textContent = percent + '%';
-                        progressText.textContent = `${processed} / ${total} 完了`;
+                        progressText.textContent = `${processed} / ${total}`;
                         
                         canvas.width = 0; canvas.height = 0;
                     } catch (err) { console.error(err); }
@@ -298,22 +297,17 @@
 
             if (isCancelling || thisProcessId !== currentProcessId) return;
 
-            progressText.textContent = 'ZIPファイルを作成中...';
+            progressText.textContent = 'ZIP creation...';
             const content = await zip.generateAsync({ type: "blob", compression: "STORE" });
             
             if (!isCancelling && thisProcessId === currentProcessId) {
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(content);
-                link.download = `AlphaSnap_Export_${Date.now()}.zip`;
+                link.download = `AlphaSnap_${Date.now()}.zip`;
                 link.click();
-
                 document.getElementById('complete-screen').classList.remove('hidden');
                 document.body.classList.remove('processing');
                 cancelBtn.classList.add('hidden');
-                progressContainer.classList.add('hidden'); // 完了したらバーを隠す
-                
-                await fetch('/api/increment', { method: 'POST' });
-                checkStatus();
             }
         }
 
@@ -322,14 +316,10 @@
                 const res = await fetch('/api/status');
                 const data = await res.json();
                 const statusText = document.getElementById('usage-text');
-                if (data.is_vip) statusText.innerHTML = '<span class="text-blue-400 font-black tracking-widest uppercase italic">✨ VIP UNLIMITED</span>';
-                else {
-                    const rem = Math.max(0, 3 - data.count);
-                    statusText.innerHTML = `本日残り: <span class="text-white font-black">${rem} / 3 回</span>`;
-                }
+                if (data.is_vip) statusText.innerHTML = '<span class="text-blue-400 font-black tracking-widest italic underline">✨ VIP ACCESS UNLIMITED</span>';
+                else statusText.innerHTML = `REMAINING: <span class="text-white font-black">${Math.max(0, 3 - data.count)} / 3</span>`;
             } catch (e) {}
         }
-
         async function unlockVip() {
             const password = document.getElementById('vip-password').value;
             const res = await fetch('/api/unlock', {
@@ -337,11 +327,7 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ password })
             });
-            const data = await res.json();
-            if (data.status === 'success') { 
-                document.getElementById('vip-modal').classList.replace('flex', 'hidden'); 
-                checkStatus(); 
-            } else { alert('認証に失敗しました'); }
+            if ((await res.json()).status === 'success') location.reload(); else alert('Invalid Passcode');
         }
         function closeModal() { document.getElementById('vip-modal').classList.replace('flex', 'hidden'); }
         checkStatus();
