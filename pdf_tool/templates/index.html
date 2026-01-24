@@ -1,18 +1,17 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-     <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-MTB190WE2E');
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AlphaSnap｜高精度・高速PDF透過変換</title>
+    <title>AlphaSnap Turbo｜1500枚/1分処理モデル</title>
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MTB190WE2E"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-MTB190WE2E');
+    </script>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -21,65 +20,66 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; }
-        .drag-active { border-color: #3b82f6; background-color: #eff6ff; }
         .checkerboard {
             background-image: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%);
-            background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-size: 20px 20px;
         }
+        @keyframes pulse-fast { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .processing-active { animation: pulse-fast 1s infinite; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col items-center py-10 px-4">
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col items-center py-10 px-4 font-sans">
 
-    <header class="text-center mb-10 max-w-2xl">
-        <h1 class="text-4xl font-bold mb-4 text-gray-900">AlphaSnap <span class="text-blue-600 text-2xl align-top">Pro</span></h1>
-        <div id="status-area" class="mt-2 inline-block bg-white px-6 py-2 rounded-full shadow-sm border border-gray-200">
-            <span id="usage-text" class="font-bold text-gray-700">読み込み中...</span>
+    <header class="text-center mb-8">
+        <h1 class="text-4xl font-black italic tracking-tighter mb-2">AlphaSnap <span class="text-blue-600">TURBO</span></h1>
+        <div id="status-area" class="bg-white px-4 py-1 rounded-full shadow-sm border border-slate-200 text-sm">
+            <span id="usage-text" class="font-bold">Ready</span>
         </div>
     </header>
 
-    <main class="w-full max-w-xl bg-white p-8 rounded-2xl shadow-xl">
-        <div class="mb-6 flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100">
-            <div class="flex items-center gap-2">
-                <i data-lucide="layers" class="text-blue-600 w-5 h-5"></i>
-                <span class="font-bold text-gray-700">高精度：背景の白を透明にする</span>
+    <main class="w-full max-w-xl bg-white p-8 rounded-3xl shadow-2xl border border-slate-100">
+        <div class="mb-6 flex items-center justify-between p-4 bg-slate-900 text-white rounded-2xl shadow-inner">
+            <div class="flex items-center gap-3">
+                <i data-lucide="zap" class="text-yellow-400 fill-yellow-400"></i>
+                <span class="font-bold">背景透過を有効化</span>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" id="transparent-toggle" class="sr-only peer" checked>
-                <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                <div class="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:bg-blue-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
             </label>
         </div>
 
-        <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer hover:border-blue-400 group transition-all">
+        <div id="drop-zone" class="border-4 border-dashed border-slate-200 rounded-2xl p-12 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all group relative overflow-hidden">
             <input type="file" id="file-input" class="hidden" accept="application/pdf">
-            <i data-lucide="upload-cloud" class="w-16 h-16 mx-auto mb-4 text-gray-400 group-hover:text-blue-500"></i>
-            <p class="text-xl font-medium text-gray-700">PDFをドロップ (大容量対応)</p>
-            <p id="file-name" class="mt-4 text-blue-600 font-bold hidden"></p>
+            <div class="relative z-10">
+                <i data-lucide="cloud-lightning" class="w-16 h-16 mx-auto mb-4 text-slate-300 group-hover:text-blue-500 group-hover:scale-110 transition-transform"></i>
+                <p class="text-xl font-black text-slate-600">PDFをドロップして爆速変換</p>
+                <p id="file-name" class="mt-4 text-blue-600 font-bold bg-blue-100 px-3 py-1 rounded-lg inline-block hidden"></p>
+            </div>
         </div>
 
-        <button id="convert-btn" class="w-full mt-8 bg-gray-900 hover:bg-gray-800 text-white font-bold py-4 rounded-xl text-lg shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95">
-            <i data-lucide="zap" class="w-5 h-5 text-yellow-400"></i>
-            高速変換してZIP保存
+        <button id="convert-btn" class="w-full mt-8 bg-blue-600 text-white font-black py-5 rounded-2xl text-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-3">
+            <i data-lucide="play" class="fill-current"></i> 変換してZIP保存
         </button>
 
-        <div id="progress-container" class="hidden mt-6">
-            <div class="w-full bg-gray-200 rounded-full h-2.5">
-                <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+        <div id="progress-container" class="hidden mt-8">
+            <div class="flex justify-between text-sm font-black mb-2 text-slate-500">
+                <span id="progress-text">SPEED: BOOSTING...</span>
+                <span id="percentage-text">0%</span>
             </div>
-            <p id="progress-text" class="text-center text-sm text-gray-600 mt-2 font-medium">準備中...</p>
+            <div class="w-full bg-slate-100 rounded-full h-4 overflow-hidden shadow-inner">
+                <div id="progress-bar" class="bg-gradient-to-r from-blue-400 to-blue-600 h-full transition-all duration-100" style="width: 0%"></div>
+            </div>
         </div>
 
-        <div id="result-area" class="hidden mt-8 grid grid-cols-2 gap-4 max-h-96 overflow-y-auto p-2 border rounded-xl bg-gray-50"></div>
+        <div id="result-area" class="hidden mt-8 grid grid-cols-5 gap-2 max-h-48 overflow-y-auto p-3 border rounded-2xl bg-slate-50 shadow-inner"></div>
     </main>
 
-    <div id="vip-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 backdrop-blur-sm">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full text-center m-4">
-            <h3 class="text-2xl font-bold mb-6">無料回数が終了しました</h3>
-            <input type="password" id="vip-password" placeholder="パスワードを入力" class="w-full p-3 border rounded-lg mb-4 outline-none focus:ring-2 focus:ring-blue-500">
-            <div class="flex gap-3">
-                <button onclick="closeModal()" class="flex-1 py-3 text-gray-500 font-bold">閉じる</button>
-                <button onclick="unlockVip()" class="flex-1 py-3 bg-blue-600 text-white font-bold rounded-lg">解除</button>
-            </div>
+    <div id="vip-modal" class="fixed inset-0 bg-slate-900/80 hidden items-center justify-center z-50 backdrop-blur-md">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center">
+            <h3 class="text-2xl font-black mb-6">LIMIT REACHED</h3>
+            <input type="password" id="vip-password" placeholder="Passcode" class="w-full p-4 bg-slate-100 rounded-xl mb-4 outline-none focus:ring-4 focus:ring-blue-500/20 text-center font-bold">
+            <button onclick="unlockVip()" class="w-full py-4 bg-blue-600 text-white font-black rounded-xl shadow-lg">UNLOCK</button>
         </div>
     </div>
 
@@ -92,162 +92,132 @@
         const progressContainer = document.getElementById('progress-container');
         const progressBar = document.getElementById('progress-bar');
         const progressText = document.getElementById('progress-text');
+        const percentageText = document.getElementById('percentage-text');
         const resultArea = document.getElementById('result-area');
-        const vipModal = document.getElementById('vip-modal');
         const transparentToggle = document.getElementById('transparent-toggle');
 
         let currentFile = null;
 
-        dropZone.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => handleFileSelect(e.target.files[0]));
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-active'); });
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-active'));
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-active');
-            handleFileSelect(e.dataTransfer.files[0]);
-        });
+        // UIイベント
+        dropZone.onclick = () => fileInput.click();
+        fileInput.onchange = (e) => handleFileSelect(e.target.files[0]);
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('bg-blue-50', 'border-blue-400'); };
+        dropZone.ondragleave = () => dropZone.classList.remove('bg-blue-50', 'border-blue-400');
+        dropZone.ondrop = (e) => { e.preventDefault(); handleFileSelect(e.dataTransfer.files[0]); };
 
         function handleFileSelect(file) {
-            if (file && file.type === 'application/pdf') {
+            if (file?.type === 'application/pdf') {
                 currentFile = file;
-                fileNameDisplay.textContent = `選択中: ${file.name}`;
+                fileNameDisplay.textContent = file.name;
                 fileNameDisplay.classList.remove('hidden');
             }
         }
 
-        convertBtn.addEventListener('click', async () => {
-            if (!currentFile) { alert('PDFを選択してください。'); return; }
-            convertBtn.disabled = true;
-
-            try {
-                const statusRes = await fetch('/api/status');
-                const statusData = await statusRes.json();
-                if (statusData.is_vip) {
-                    await processFiles(currentFile);
-                } else {
-                    const incRes = await fetch('/api/increment', { method: 'POST' });
-                    if (incRes.ok) {
-                        const incData = await incRes.json();
-                        updateStatusDisplay(incData);
-                        await processFiles(currentFile);
-                    } else {
-                        vipModal.classList.remove('hidden');
-                        vipModal.classList.add('flex');
-                        convertBtn.disabled = false;
-                    }
-                }
-            } catch (err) { alert('通信エラー'); convertBtn.disabled = false; }
-        });
-
-        // 【高速化】32ビット一括処理で白を抜く
-        function fastRemoveWhite(canvas) {
-            const ctx = canvas.getContext('2d');
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const buf = new ArrayBuffer(imageData.data.length);
-            const buf8 = new Uint8ClampedArray(buf);
-            const data = new Uint32Array(buf);
-            data.set(new Uint32Array(imageData.data.buffer));
-
+        // 高速透明化ロジック (32bit)
+        function fastRemoveWhite(ctx, width, height) {
+            const imgData = ctx.getImageData(0, 0, width, height);
+            const data = new Uint32Array(imgData.data.buffer);
             const threshold = 250;
             for (let i = 0; i < data.length; i++) {
                 const val = data[i];
-                // 32ビット整数としてRGBAを比較 (リトルエンディアン想定)
                 if ((val & 0xFF) >= threshold && ((val >> 8) & 0xFF) >= threshold && ((val >> 16) & 0xFF) >= threshold) {
-                    data[i] = 0; // 透明
+                    data[i] = 0;
                 }
             }
-            imageData.data.set(buf8);
-            ctx.putImageData(imageData, 0, 0);
+            ctx.putImageData(imgData, 0, 0);
         }
 
-        async function processFiles(file) {
+        convertBtn.onclick = async () => {
+            if (!currentFile) return;
+            convertBtn.disabled = true;
+            
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                if (data.is_vip) await processTurbo(currentFile);
+                else {
+                    const inc = await fetch('/api/increment', { method: 'POST' });
+                    if (inc.ok) await processTurbo(currentFile);
+                    else document.getElementById('vip-modal').classList.replace('hidden', 'flex');
+                }
+            } catch (e) { alert('API Error'); convertBtn.disabled = false; }
+        };
+
+        async function processTurbo(file) {
             progressContainer.classList.remove('hidden');
             resultArea.innerHTML = '';
             resultArea.classList.remove('hidden');
+            
             const zip = new JSZip();
             const isTransparent = transparentToggle.checked;
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({data: arrayBuffer, verbosity: 0}).promise;
+            const total = pdf.numPages;
 
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
-                const totalPages = pdf.numPages;
+            // コア数に合わせて並列実行数を調整 (最大8並列)
+            const concurrency = Math.min(navigator.hardwareConcurrency || 4, 8);
+            let processed = 0;
 
-                for (let i = 1; i <= totalPages; i++) {
-                    progressText.textContent = `${i} / ${totalPages} ページを高速処理中...`;
-                    progressBar.style.width = `${(i / totalPages) * 80}%`;
+            const processPage = async (pageNum) => {
+                const page = await pdf.getPage(pageNum);
+                const viewport = page.getViewport({ scale: 2.0 });
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                const ctx = canvas.getContext('2d', { alpha: true });
 
-                    const page = await pdf.getPage(i);
-                    const viewport = page.getViewport({ scale: 300 / 72 });
-                    
-                    const canvas = document.createElement('canvas');
-                    canvas.width = viewport.width;
-                    canvas.height = viewport.height;
-                    const context = canvas.getContext('2d', { alpha: true });
+                await page.render({ canvasContext: ctx, viewport, background: 'transparent' }).promise;
+                
+                if (isTransparent) fastRemoveWhite(ctx, canvas.width, canvas.height);
 
-                    await page.render({
-                        canvasContext: context,
-                        viewport: viewport,
-                        background: 'transparent'
-                    }).promise;
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+                zip.file(`${pageNum}.png`, blob);
 
-                    if (isTransparent) {
-                        fastRemoveWhite(canvas);
-                    }
-
-                    // プレビュー表示
-                    const imgData = canvas.toDataURL('image/png', 0.8);
-                    const imgEl = document.createElement('div');
-                    imgEl.className = `p-1 border rounded ${isTransparent ? 'checkerboard' : 'bg-white'}`;
-                    imgEl.innerHTML = `<img src="${imgData}" class="w-full h-auto">`;
-                    resultArea.appendChild(imgEl);
-
-                    // ZIP追加
-                    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-                    zip.file(`${i}.png`, blob);
-
-                    // 【メモリ解放】
-                    canvas.width = 0; canvas.height = 0; // Canvasバッファを強制破棄
+                // プレビュー（最初の30枚のみ）
+                if (pageNum <= 30) {
+                    const url = URL.createObjectURL(blob);
+                    const div = document.createElement('div');
+                    div.className = `p-0.5 border rounded ${isTransparent ? 'checkerboard' : 'bg-white'}`;
+                    div.innerHTML = `<img src="${url}" class="w-full">`;
+                    resultArea.appendChild(div);
                 }
 
-                progressText.textContent = 'ZIPファイル生成中... (大容量のため少々お待ちください)';
-                // 圧縮レベルを0（無圧縮）にすることで速度を爆速にし、メモリ負荷を下げます
-                const content = await zip.generateAsync({ type: "blob", compression: "STORE" });
+                processed++;
+                const percent = Math.floor((processed / total) * 100);
+                progressBar.style.width = percent + '%';
+                percentageText.textContent = percent + '%';
+                progressText.textContent = `PROCESSING: ${processed} / ${total}`;
                 
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(content);
-                link.download = `converted_${Date.now()}.zip`;
-                link.click();
+                // メモリ解放
+                canvas.width = 0; canvas.height = 0;
+            };
 
-                progressText.textContent = '完了しました！';
-                progressBar.style.width = '100%';
-            } catch (e) { 
-                console.error(e);
-                alert('エラー：ファイルが大きすぎるか、メモリが不足しました。ページ数を減らして試してください。'); 
-            } finally { convertBtn.disabled = false; }
+            // キュー制御による並列実行
+            const queue = Array.from({length: total}, (_, i) => i + 1);
+            const workers = Array(concurrency).fill(null).map(async () => {
+                while (queue.length > 0) {
+                    await processPage(queue.shift());
+                }
+            });
+
+            await Promise.all(workers);
+
+            progressText.textContent = 'FINALIZING ZIP...';
+            const content = await zip.generateAsync({ type: "blob", compression: "STORE" });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(content);
+            link.download = `AlphaSnap_Turbo_${Date.now()}.zip`;
+            link.click();
+
+            progressText.textContent = 'COMPLETE!';
+            convertBtn.disabled = false;
         }
 
         async function checkStatus() {
             const res = await fetch('/api/status');
             const data = await res.json();
-            updateStatusDisplay(data);
+            document.getElementById('usage-text').innerHTML = data.is_vip ? '✨ VIP UNLIMITED' : `REMAINING: ${3 - data.count} / 3`;
         }
-
-        function updateStatusDisplay(data) {
-            const statusText = document.getElementById('usage-text');
-            statusText.innerHTML = data.is_vip ? '✨ VIPモード (無制限)' : `残り回数: ${3 - data.count}回 / 3回`;
-        }
-
-        async function unlockVip() {
-            const password = document.getElementById('vip-password').value;
-            const res = await fetch('/api/unlock', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ password })
-            });
-            if ((await res.json()).status === 'success') { closeModal(); checkStatus(); } else { alert('不一致'); }
-        }
-        function closeModal() { vipModal.classList.add('hidden'); vipModal.classList.remove('flex'); }
         checkStatus();
     </script>
 </body>
