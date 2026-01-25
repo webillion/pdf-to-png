@@ -2,108 +2,127 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>AlphaSnap | v3.4 Ultra Smooth</title>
+    <title>AlphaSnap | v3.5 Calm Turbo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body { background-color: #020617; font-family: sans-serif; overflow: hidden; height: 100vh; }
+        body { background-color: #020617; font-family: 'Inter', sans-serif; overflow: hidden; height: 100vh; }
         .checkerboard { background-image: linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%); background-size: 10px 10px; background-color: #f3f4f6; }
         .processing * { pointer-events: none !important; }
         .allow-cancel { pointer-events: auto !important; cursor: pointer !important; }
-        .recent-item { animation: slideIn 0.3s ease-out; }
-        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        .recent-item { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        /* スムーズなフェードイン */
+        .fade-update { transition: opacity 0.15s ease-in-out; }
     </style>
 </head>
 <body class="text-slate-300 flex flex-col">
 
-    <header class="h-20 bg-slate-900 border-b border-white/10 flex items-center px-8 justify-between z-50">
-        <div class="flex items-center gap-4">
-            <h1 class="text-xl font-black italic text-white flex items-center gap-2">
-                <i data-lucide="zap" class="text-blue-500 fill-blue-500 w-5 h-5"></i> AlphaSnap
+    <header class="h-20 bg-slate-900 border-b border-white/5 flex items-center px-8 justify-between z-50 shadow-xl">
+        <div class="flex items-center gap-6">
+            <h1 class="text-xl font-black italic text-white flex items-center gap-2 tracking-tighter">
+                <i data-lucide="zap" class="text-blue-500 fill-blue-500 w-5 h-5"></i> ALPHASNAP
             </h1>
-            <div id="usage-text" class="text-[10px] font-bold text-slate-500 bg-slate-950 px-3 py-1 rounded-full uppercase tracking-widest">Checking...</div>
+            <div id="usage-tag" class="text-[9px] font-bold text-slate-400 bg-white/5 border border-white/10 px-3 py-1 rounded-full uppercase tracking-widest">Checking...</div>
         </div>
 
-        <div id="master-progress" class="flex-1 max-w-xl mx-8 hidden">
-            <div class="flex justify-between text-[10px] font-black mb-1 px-1">
-                <span id="progress-label" class="text-blue-400 uppercase tracking-tighter italic">Engine Processing...</span>
-                <span id="percentage-text" class="text-white">0%</span>
+        <div id="master-progress-area" class="flex-1 max-w-2xl mx-12 hidden">
+            <div class="flex justify-between items-end mb-2 px-1">
+                <div class="flex items-center gap-3">
+                    <span id="engine-status" class="text-[10px] font-black text-blue-400 uppercase tracking-widest animate-pulse">Processing</span>
+                    <span id="page-count-detail" class="text-xs font-mono text-slate-400">0 / 0</span>
+                </div>
+                <span id="percentage-text" class="text-xl font-black text-white italic">0%</span>
             </div>
-            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                <div id="progress-bar" class="h-full bg-blue-500 w-0 transition-all duration-300"></div>
+            <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden shadow-inner">
+                <div id="progress-bar" class="h-full bg-gradient-to-r from-blue-600 to-blue-400 w-0 transition-all duration-300 relative">
+                    <div class="absolute inset-0 bg-white/20 animate-shimmer" style="background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); width: 200%; animation: shimmer 2s infinite linear;"></div>
+                </div>
             </div>
         </div>
 
-        <div class="flex gap-3">
-            <button id="convert-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-black px-6 py-2 rounded-lg text-xs transition-all shadow-lg flex items-center gap-2">
-                <i data-lucide="play" class="w-3 h-3 fill-current"></i> 開始
+        <div class="flex gap-4">
+            <button id="convert-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-black px-8 py-3 rounded-xl text-xs transition-all shadow-lg flex items-center gap-2">
+                開始
             </button>
-            <button id="cancel-btn" class="allow-cancel hidden bg-red-600 hover:bg-red-500 text-white font-black px-6 py-2 rounded-lg text-xs transition-all flex items-center gap-2">
-                <i data-lucide="square" class="w-3 h-3 fill-current"></i> 中止
+            <button id="cancel-btn" class="allow-cancel hidden bg-red-600 hover:bg-red-500 text-white font-black px-8 py-3 rounded-xl text-xs transition-all flex items-center gap-2">
+                中止
             </button>
         </div>
     </header>
 
     <main class="flex-1 flex overflow-hidden">
         
-        <div class="w-80 bg-slate-900/50 border-r border-white/5 p-6 flex flex-col gap-6">
-            <div id="drop-zone" class="flex-1 border-2 border-dashed border-slate-700 rounded-2xl flex flex-col items-center justify-center p-4 text-center hover:border-blue-500 transition-all cursor-pointer group">
+        <aside class="w-80 bg-slate-900/50 border-r border-white/5 p-6 flex flex-col gap-6">
+            <div id="drop-zone" class="relative group h-48 border-2 border-dashed border-slate-700 rounded-3xl flex flex-col items-center justify-center p-6 text-center hover:border-blue-500 transition-all cursor-pointer bg-slate-950/20">
                 <input type="file" id="file-input" class="hidden" accept="application/pdf">
-                <i data-lucide="file-up" class="w-10 h-10 mb-3 text-slate-600 group-hover:text-blue-500 transition-colors"></i>
-                <p id="drop-text" class="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-relaxed">PDFをここにドロップ<br>またはクリック</p>
-                <div id="file-info" class="hidden w-full">
-                    <p id="file-name-display" class="text-blue-400 font-bold text-xs truncate mb-1"></p>
-                    <span class="text-[8px] bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded uppercase font-black tracking-tighter">Ready</span>
+                <div id="drop-ui">
+                    <i data-lucide="upload" class="w-8 h-8 mb-4 text-slate-600 group-hover:text-blue-500 transition-colors"></i>
+                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Drop PDF Here</p>
+                </div>
+                
+                <div id="file-ready-ui" class="hidden w-full">
+                    <div class="bg-blue-500/10 p-4 rounded-2xl border border-blue-500/20 mb-4 relative">
+                        <p id="file-name-display" class="text-blue-400 font-bold text-xs truncate"></p>
+                        <button id="clear-file-btn" class="absolute -top-2 -right-2 bg-slate-800 hover:bg-red-500 text-white p-1.5 rounded-full shadow-lg transition-colors border border-white/10">
+                            <i data-lucide="x" class="w-3 h-3"></i>
+                        </button>
+                    </div>
+                    <span class="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em]">Ready to Snap</span>
                 </div>
             </div>
 
-            <div class="bg-slate-950 p-4 rounded-xl border border-white/5">
+            <div class="p-5 bg-slate-950/50 rounded-2xl border border-white/5 space-y-4">
                 <div class="flex items-center justify-between">
-                    <span class="text-[10px] font-bold text-slate-400">背景透過（白を除去）</span>
-                    <input type="checkbox" id="transparent-toggle" checked class="w-4 h-4 rounded border-slate-700 bg-slate-800 text-blue-600">
+                    <span class="text-[10px] font-black text-slate-500 uppercase">Background</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="transparent-toggle" checked class="sr-only peer">
+                        <div class="w-10 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 peer-checked:after:bg-white"></div>
+                    </label>
                 </div>
             </div>
-        </div>
+        </aside>
 
-        <div class="flex-1 bg-slate-950 flex flex-col items-center justify-center p-12 relative">
-            <div id="monitor-container" class="w-full max-w-md aspect-[1/1.41] checkerboard rounded-lg shadow-2xl overflow-hidden border border-white/10 relative opacity-20 transition-opacity duration-500">
-                <img id="spotlight-img" class="w-full h-full object-contain">
-                <div class="absolute inset-0 flex items-center justify-center pointer-events-none" id="monitor-placeholder">
-                    <p class="text-slate-800 font-black text-4xl italic uppercase tracking-widest">No Action</p>
+        <section class="flex-1 bg-slate-950 flex flex-col items-center justify-center p-12 relative">
+            <div id="monitor-frame" class="w-full max-w-lg aspect-[1/1.41] checkerboard rounded-2xl shadow-[0_0_100px_rgba(0,0,0,0.5)] overflow-hidden border border-white/5 relative opacity-10 transition-all duration-700 scale-95">
+                <img id="spotlight-img" class="w-full h-full object-contain fade-update">
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none" id="monitor-idle-text">
+                    <p class="text-slate-900 font-black text-3xl italic uppercase tracking-[0.3em]">Standby</p>
                 </div>
-                <div class="absolute bottom-4 left-4 bg-black/80 backdrop-blur-md px-4 py-2 rounded-lg border border-white/10">
-                    <p id="current-page-display" class="text-white font-black italic text-xl">PAGE ---</p>
+                <div class="absolute bottom-6 left-6 right-6 flex justify-between items-end">
+                    <div class="bg-black/60 backdrop-blur-xl px-5 py-3 rounded-2xl border border-white/10 shadow-2xl">
+                        <p id="page-tag-display" class="text-white font-black italic text-2xl tracking-tighter">PAGE ---</p>
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div class="w-64 bg-slate-900/30 border-l border-white/5 p-4 flex flex-col">
-            <h3 class="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-4 italic">Recent Logs</h3>
-            <div id="recent-area" class="flex flex-col gap-4 overflow-hidden">
+        <aside class="w-72 bg-slate-900/30 border-l border-white/5 p-4 flex flex-col overflow-hidden">
+            <p class="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-6 italic text-center">Process History</p>
+            <div id="recent-log-column" class="flex flex-col gap-4 overflow-hidden">
                 </div>
-        </div>
+        </aside>
     </main>
 
-    <div id="complete-modal" class="fixed inset-0 bg-slate-950/90 hidden items-center justify-center z-[100] backdrop-blur-xl">
+    <div id="success-overlay" class="fixed inset-0 bg-slate-950/95 hidden items-center justify-center z-[100] backdrop-blur-2xl">
         <div class="text-center">
-            <div class="w-20 h-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 border border-green-500/30 animate-bounce">
-                <i data-lucide="check" class="w-10 h-10"></i>
+            <div class="w-24 h-24 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mx-auto mb-8 border border-green-500/20 shadow-[0_0_50px_rgba(34,197,94,0.1)]">
+                <i data-lucide="download" class="w-10 h-10"></i>
             </div>
-            <h2 class="text-4xl font-black text-white mb-2 italic">DOWNLOADED!</h2>
-            <p class="text-slate-400 font-bold mb-8 uppercase tracking-widest text-xs">ZIPファイルの保存が完了しました</p>
-            <button onclick="location.reload()" class="bg-blue-600 hover:bg-blue-500 text-white font-black px-10 py-4 rounded-xl transition-all shadow-2xl">NEXT PDF</button>
+            <h2 class="text-4xl font-black text-white mb-3 italic tracking-tighter uppercase">Snap Completed</h2>
+            <p class="text-slate-500 font-bold mb-10 text-xs tracking-widest uppercase">ZIPファイルの保存に成功しました</p>
+            <button onclick="location.reload()" class="bg-white text-slate-950 font-black px-12 py-4 rounded-2xl hover:scale-105 transition-all shadow-2xl text-sm">再開する</button>
         </div>
     </div>
 
-    <div id="vip-modal" class="fixed inset-0 bg-slate-950/98 hidden items-center justify-center z-[200] backdrop-blur-md">
-        <div class="bg-white p-10 rounded-[40px] max-w-sm w-full text-center text-slate-900 shadow-2xl">
-            <h3 class="text-2xl font-black mb-4">回数制限です</h3>
-            <p class="text-slate-500 text-sm mb-8 font-bold">VIPパスコードを入力してください</p>
-            <input type="password" id="vip-password" placeholder="PASSCODE" class="w-full p-4 bg-slate-100 rounded-2xl mb-4 text-center font-bold border-none outline-none focus:ring-2 ring-blue-500">
-            <button onclick="unlockVip()" class="w-full py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 transition-all shadow-xl">解除する</button>
+    <div id="vip-modal" class="fixed inset-0 bg-slate-950/98 hidden items-center justify-center z-[200] backdrop-blur-lg">
+        <div class="bg-white p-12 rounded-[40px] max-w-sm w-full text-center text-slate-900 shadow-2xl">
+            <h3 class="text-2xl font-black mb-4">LIMIT REACHED</h3>
+            <p class="text-slate-500 text-sm font-bold mb-8">継続にはVIPパスコードが必要です</p>
+            <input type="password" id="vip-pass" placeholder="ENTER CODE" class="w-full p-4 bg-slate-100 rounded-2xl mb-6 text-center font-bold border-none outline-none focus:ring-4 ring-blue-500/20 transition-all">
+            <button onclick="unlockVip()" class="w-full py-5 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 transition-all shadow-xl uppercase tracking-widest text-xs">Unlock Now</button>
         </div>
     </div>
 
@@ -111,88 +130,82 @@
         lucide.createIcons();
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('file-input');
-        const fileInfo = document.getElementById('file-info');
-        const fileNameDisplay = document.getElementById('file-name-display');
-        const dropText = document.getElementById('drop-text');
+        const fileReadyUI = document.getElementById('file-ready-ui');
+        const dropUI = document.getElementById('drop-ui');
+        const clearBtn = document.getElementById('clear-file-btn');
         const convertBtn = document.getElementById('convert-btn');
         const cancelBtn = document.getElementById('cancel-btn');
         const progressBar = document.getElementById('progress-bar');
+        const pageCountDetail = document.getElementById('page-count-detail');
         const percentageText = document.getElementById('percentage-text');
-        const progressLabel = document.getElementById('progress-label');
-        const masterProgress = document.getElementById('master-progress');
         const spotlightImg = document.getElementById('spotlight-img');
-        const currentPageDisplay = document.getElementById('current-page-display');
-        const monitorContainer = document.getElementById('monitor-container');
-        const recentArea = document.getElementById('recent-area');
+        const monitorFrame = document.getElementById('monitor-frame');
+        const recentLog = document.getElementById('recent-log-column');
         const transparentToggle = document.getElementById('transparent-toggle');
 
         let currentFile = null;
-        let isCancelling = false;
-        let currentProcessId = 0;
+        let isProcessing = false;
+        let lastVisualUpdate = 0; // スロットリング用
 
-        // --- ファイル選択ロジック ---
-        function handleFileSelect(file) {
+        // --- ファイル選択・クリア ---
+        function setFile(file) {
             if (file?.type === 'application/pdf') {
                 currentFile = file;
-                fileNameDisplay.textContent = file.name;
-                dropText.classList.add('hidden');
-                fileInfo.classList.remove('hidden');
-                dropZone.classList.add('border-blue-500', 'bg-blue-500/5');
+                document.getElementById('file-name-display').textContent = file.name;
+                dropUI.classList.add('hidden');
+                fileReadyUI.classList.remove('hidden');
             }
         }
 
         dropZone.onclick = () => fileInput.click();
-        fileInput.onchange = (e) => handleFileSelect(e.target.files[0]);
-
-        // ドラッグ＆ドロップの修正
-        window.addEventListener('dragover', (e) => e.preventDefault());
-        window.addEventListener('drop', (e) => e.preventDefault());
-
-        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-slate-800'); };
-        dropZone.ondragleave = () => { dropZone.classList.remove('border-blue-500', 'bg-slate-800'); };
-        dropZone.ondrop = (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('border-blue-500', 'bg-slate-800');
-            handleFileSelect(e.dataTransfer.files[0]);
+        fileInput.onchange = (e) => setFile(e.target.files[0]);
+        clearBtn.onclick = (e) => {
+            e.stopPropagation();
+            currentFile = null;
+            fileInput.value = "";
+            fileReadyUI.classList.add('hidden');
+            dropUI.classList.remove('hidden');
         };
 
+        // ドラッグドロップ
+        window.ondragover = (e) => e.preventDefault();
+        window.ondrop = (e) => e.preventDefault();
+        dropZone.ondrop = (e) => { e.preventDefault(); setFile(e.dataTransfer.files[0]); };
+
+        // --- 変換処理 ---
         convertBtn.onclick = async () => {
-            if (!currentFile) return;
-            const res = await fetch('/api/status');
-            const data = await res.json();
-            if (data.count >= 3 && !data.is_vip) { document.getElementById('vip-modal').classList.replace('hidden', 'flex'); return; }
+            if (!currentFile || isProcessing) return;
+            
+            const status = await (await fetch('/api/status')).json();
+            if (status.count >= 3 && !status.is_vip) {
+                document.getElementById('vip-modal').classList.replace('hidden', 'flex');
+                return;
+            }
 
-            const incRes = await fetch('/api/increment', { method: 'POST' });
-            if (incRes.status === 403) { document.getElementById('vip-modal').classList.replace('hidden', 'flex'); return; }
-
-            isCancelling = false;
+            await fetch('/api/increment', { method: 'POST' });
+            
+            isProcessing = true;
             document.body.classList.add('processing');
             convertBtn.classList.add('hidden');
             cancelBtn.classList.remove('hidden');
-            masterProgress.classList.remove('hidden');
-            monitorContainer.classList.replace('opacity-20', 'opacity-100');
-            document.getElementById('monitor-placeholder').classList.add('hidden');
-            
-            await processTurbo(currentFile);
-            checkStatus();
+            document.getElementById('master-progress-area').classList.remove('hidden');
+            monitorFrame.classList.replace('opacity-10', 'opacity-100');
+            monitorFrame.classList.replace('scale-95', 'scale-100');
+            document.getElementById('monitor-idle-text').classList.add('hidden');
+
+            await startConversion(currentFile);
         };
 
-        cancelBtn.onclick = () => { isCancelling = true; location.reload(); };
-
-        async function processTurbo(file) {
-            const thisProcessId = ++currentProcessId;
+        async function startConversion(file) {
             const zip = new JSZip();
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({data: arrayBuffer, verbosity: 0}).promise;
+            const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer(), verbosity: 0}).promise;
             const total = pdf.numPages;
-
             const concurrency = Math.min(navigator.hardwareConcurrency || 4, 8);
             let processed = 0;
             const queue = Array.from({length: total}, (_, i) => i + 1);
 
             const workers = Array(concurrency).fill(null).map(async () => {
-                while (queue.length > 0) {
-                    if (isCancelling || thisProcessId !== currentProcessId) return;
+                while (queue.length > 0 && isProcessing) {
                     const pageNum = queue.shift();
                     const page = await pdf.getPage(pageNum);
                     const viewport = page.getViewport({ scale: 2.0 });
@@ -203,10 +216,10 @@
                     
                     if (transparentToggle.checked) {
                         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                        const data = new Uint32Array(imgData.data.buffer);
-                        for (let i = 0; i < data.length; i++) {
-                            const v = data[i];
-                            if ((v & 0xFF) >= 250 && ((v >> 8) & 0xFF) >= 250 && ((v >> 16) & 0xFF) >= 250) data[i] = 0;
+                        const d = new Uint32Array(imgData.data.buffer);
+                        for (let i = 0; i < d.length; i++) {
+                            const v = d[i];
+                            if ((v & 0xFF) >= 250 && ((v >> 8) & 0xFF) >= 250 && ((v >> 16) & 0xFF) >= 250) d[i] = 0;
                         }
                         ctx.putImageData(imgData, 0, 0);
                     }
@@ -215,36 +228,37 @@
                     zip.file(`${pageNum}.png`, blob);
                     const url = URL.createObjectURL(blob);
 
-                    // 1. スポットライト更新 (高速)
-                    spotlightImg.src = url;
-                    currentPageDisplay.textContent = `PAGE ${pageNum} / ${total}`;
-
-                    // 2. 右サイドに履歴を追加 (最新5枚に制限して軽くする)
-                    const thumb = document.createElement('div');
-                    thumb.className = `recent-item h-24 rounded border border-white/10 overflow-hidden shrink-0 ${transparentToggle.checked ? 'checkerboard' : 'bg-white'}`;
-                    thumb.innerHTML = `<img src="${url}" class="w-full h-full object-contain">`;
-                    recentArea.prepend(thumb);
-                    if (recentArea.children.length > 5) {
-                        recentArea.lastChild.remove();
+                    // --- ビジュアル更新のスロットリング（100msに1回制限） ---
+                    const now = Date.now();
+                    if (now - lastVisualUpdate > 100) {
+                        spotlightImg.src = url;
+                        document.getElementById('page-tag-display').textContent = `PAGE ${pageNum}`;
+                        
+                        // ログ更新
+                        const item = document.createElement('div');
+                        item.className = `recent-item h-20 rounded-xl overflow-hidden border border-white/10 shrink-0 ${transparentToggle.checked ? 'checkerboard' : 'bg-white'}`;
+                        item.innerHTML = `<img src="${url}" class="w-full h-full object-contain">`;
+                        recentLog.prepend(item);
+                        if (recentLog.children.length > 4) recentLog.lastChild.remove();
+                        
+                        lastVisualUpdate = now;
                     }
 
                     processed++;
-                    const percent = Math.floor((processed / total) * 100);
-                    progressBar.style.width = percent + '%';
-                    percentageText.textContent = percent + '%';
+                    const pc = Math.floor((processed / total) * 100);
+                    progressBar.style.width = pc + '%';
+                    percentageText.textContent = pc + '%';
+                    pageCountDetail.textContent = `${processed} / ${total}`;
                 }
             });
 
             await Promise.all(workers);
-            if (isCancelling || thisProcessId !== currentProcessId) return;
+            if (!isProcessing) return;
 
-            // ZIPフェーズ
-            cancelBtn.classList.add('hidden');
-            progressLabel.textContent = "Packing Zip File...";
-            progressLabel.classList.add('animate-pulse', 'text-green-400');
-            progressBar.classList.replace('bg-blue-500', 'bg-green-500');
-
-            const content = await zip.generateAsync({ type: "blob", compression: "STORE" }, (m) => {
+            // ZIP作成
+            document.getElementById('engine-status').textContent = "Packing Archive";
+            progressBar.classList.add('bg-green-500');
+            const content = await zip.generateAsync({ type: "blob" }, (m) => {
                 percentageText.textContent = Math.floor(m.percent) + '%';
                 progressBar.style.width = m.percent + '%';
             });
@@ -254,19 +268,18 @@
             link.download = `AlphaSnap_${Date.now()}.zip`;
             link.click();
 
-            document.getElementById('complete-modal').classList.replace('hidden', 'flex');
-            document.body.classList.remove('processing');
+            document.getElementById('success-overlay').classList.replace('hidden', 'flex');
         }
 
+        cancelBtn.onclick = () => location.reload();
+
         async function checkStatus() {
-            const res = await fetch('/api/status');
-            const data = await res.json();
-            const txt = document.getElementById('usage-text');
-            txt.innerHTML = data.is_vip ? '<span class="text-blue-400">✨ VIP UNLIMITED</span>' : `REMAINING: ${Math.max(0, 3 - data.count)} / 3`;
+            const data = await (await fetch('/api/status')).json();
+            document.getElementById('usage-tag').innerHTML = data.is_vip ? '<span class="text-blue-400 font-black">VIP ACCESS</span>' : `REMAINING: ${Math.max(0, 3-data.count)} / 3`;
         }
         async function unlockVip() {
-            const res = await fetch('/api/unlock', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ password: document.getElementById('vip-password').value })});
-            if ((await res.json()).status === 'success') location.reload(); else alert('Invalid Passcode');
+            const res = await fetch('/api/unlock', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ password: document.getElementById('vip-pass').value })});
+            if ((await res.json()).status === 'success') location.reload(); else alert('Invalid Code');
         }
         checkStatus();
     </script>
