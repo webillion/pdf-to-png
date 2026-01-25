@@ -3,28 +3,32 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+// 環境変数からパスワードを取得
+const VIP_PASSWORD = process.env.VIP_PASSWORD;
+
+if (!VIP_PASSWORD) {
+    console.warn("⚠️ 警告: 環境変数 'VIP_PASSWORD' が設定されていません。VIP認証機能は動作しません。");
+}
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'templates')));
 
-// ユーザーデータ (メモリ管理)
-// キーをIPではなく「デバイスID」にします
+// ユーザーデータ (メモリ管理: デバイスIDベース)
 const userStore = {};
 
 const getToday = () => new Date().toLocaleDateString('ja-JP');
 
-// ユーザー初期化 (IDベース)
+// ユーザー初期化
 const initUser = (deviceId) => {
     const today = getToday();
-    // IDがない場合は空のオブジェクトを返す（カウント不可）
     if (!deviceId) return { count: 3, date: today, isVip: false }; 
 
     if (!userStore[deviceId]) {
         userStore[deviceId] = { count: 0, date: today, isVip: false };
     } else if (userStore[deviceId].date !== today) {
-        // 日付が変わったらリセット
         userStore[deviceId].count = 0;
         userStore[deviceId].date = today;
-        userStore[deviceId].isVip = false; // VIPもリセットする場合
+        userStore[deviceId].isVip = false; 
     }
     return userStore[deviceId];
 };
@@ -49,16 +53,22 @@ app.post('/api/increment', (req, res) => {
     res.json({ status: 'success', current_count: user.count });
 });
 
+// VIP解除API (環境変数を使用)
 app.post('/api/unlock', (req, res) => {
     const deviceId = req.headers['x-device-id'];
     const user = initUser(deviceId);
 
-    // パスワード判定 (環境変数などに入れるとなお良いですが、簡易版として直書き)
-    if (req.body.password === 'vip2026') {
+    // サーバー側の設定ミス防止チェック
+    if (!VIP_PASSWORD) {
+        return res.status(500).json({ status: 'error', message: 'Server configuration error' });
+    }
+
+    // 環境変数と比較
+    if (req.body.password === VIP_PASSWORD) {
         user.isVip = true;
         res.json({ status: 'success' });
     } else {
-        res.status(401).json({ status: 'error' });
+        res.status(401).json({ status: 'error' }); // パスワード不一致
     }
 });
 
