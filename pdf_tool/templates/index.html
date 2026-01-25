@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>AlphaSnap | v3.8 User Management</title>
+    <title>AlphaSnap | v3.9 Device ID</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
@@ -24,7 +24,7 @@
             <h1 class="text-xl font-black italic text-white flex items-center gap-2">
                 <i data-lucide="zap" class="text-blue-500 fill-blue-500 w-5 h-5"></i> ALPHASNAP
             </h1>
-            <div id="usage-tag" class="text-[10px] font-bold text-slate-500 border border-white/10 px-3 py-1 rounded-full uppercase tracking-widest cursor-pointer hover:bg-white/5 transition-colors" onclick="document.getElementById('vip-modal').classList.replace('hidden', 'flex')">
+            <div id="usage-tag" class="text-[10px] font-bold text-slate-500 border border-white/10 px-3 py-1 rounded-full uppercase tracking-widest cursor-pointer hover:bg-white/5 transition-colors" onclick="openVip()">
                 Checking...
             </div>
         </div>
@@ -97,10 +97,8 @@
     <div id="vip-modal" class="fixed inset-0 bg-slate-950/98 hidden items-center justify-center z-[200] backdrop-blur-md">
         <div class="bg-white p-12 rounded-[40px] max-w-sm w-full text-center text-slate-900 shadow-2xl relative">
             <button onclick="document.getElementById('vip-modal').classList.replace('flex', 'hidden')" class="absolute top-6 right-6 text-slate-400 hover:text-slate-900"><i data-lucide="x" class="w-6 h-6"></i></button>
-            
             <h3 class="text-2xl font-black mb-2 uppercase italic">Limit Reached</h3>
             <p class="text-slate-500 text-xs font-bold mb-8 uppercase">本日の無料分(3回)を終了しました</p>
-            
             <input type="password" id="vip-pass" placeholder="VIP PASSCODE" class="w-full p-4 bg-slate-100 rounded-2xl mb-4 text-center font-bold border-none outline-none focus:ring-4 ring-blue-500/20 transition-all">
             <button onclick="unlockVip()" class="w-full py-5 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 transition-all shadow-xl uppercase tracking-widest text-xs">Unlock Access</button>
         </div>
@@ -109,6 +107,20 @@
     <script>
         lucide.createIcons();
         
+        // --- デバイスID生成ロジック ---
+        function getDeviceId() {
+            let id = localStorage.getItem('alpha_device_id');
+            if (!id) {
+                // ランダムなUUID風文字列を生成
+                id = 'dev_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                localStorage.setItem('alpha_device_id', id);
+            }
+            return id;
+        }
+
+        const deviceId = getDeviceId(); // これを全てのAPIリクエストのヘッダーに載せる
+
+        // --- 以下メイン処理 ---
         let currentFile = null;
         let isProcessing = false;
         let blobUrls = [];
@@ -120,7 +132,6 @@
         const statusLabel = document.getElementById('status-label');
         const usageTag = document.getElementById('usage-tag');
 
-        // --- ファイル操作 ---
         function setFile(file) {
             if (file?.type === 'application/pdf') {
                 currentFile = file;
@@ -138,35 +149,38 @@
             document.getElementById('file-ready-ui').classList.add('hidden');
             document.getElementById('drop-ui').classList.remove('hidden');
         };
-
         window.ondragover = (e) => e.preventDefault();
         window.ondrop = (e) => { e.preventDefault(); setFile(e.dataTransfer.files[0]); };
+        document.getElementById('cancel-btn').onclick = () => window.location.reload();
+        
+        function openVip() {
+            document.getElementById('vip-modal').classList.remove('hidden');
+            document.getElementById('vip-modal').classList.add('flex');
+        }
 
         // --- 変換処理 ---
         convertBtn.onclick = async () => {
             if (!currentFile || isProcessing) return;
 
-            // 1. まずステータスを確認
-            const statusRes = await fetch('/api/status');
+            // 1. ステータス確認 (HeaderにID付与)
+            const statusRes = await fetch('/api/status', { headers: { 'x-device-id': deviceId } });
             const status = await statusRes.json();
 
-            // 2. 制限チェック (3回以上 かつ VIPじゃない場合)
             if (status.count >= 3 && !status.is_vip) {
-                document.getElementById('vip-modal').classList.remove('hidden');
-                document.getElementById('vip-modal').classList.add('flex');
+                openVip();
                 return;
             }
 
-            // 3. カウントアップリクエスト
-            const incRes = await fetch('/api/increment', { method: 'POST' });
+            // 2. カウントアップ (HeaderにID付与)
+            const incRes = await fetch('/api/increment', { 
+                method: 'POST',
+                headers: { 'x-device-id': deviceId }
+            });
             if (incRes.status === 403) {
-                // 念のためここでもブロック
-                document.getElementById('vip-modal').classList.remove('hidden');
-                document.getElementById('vip-modal').classList.add('flex');
+                openVip();
                 return;
             }
 
-            // 処理開始
             isProcessing = true;
             document.body.classList.add('processing');
             convertBtn.classList.add('hidden');
@@ -174,7 +188,7 @@
             document.getElementById('progress-area').classList.remove('hidden');
             document.getElementById('monitor-frame').classList.replace('opacity-10', 'opacity-100');
             document.getElementById('monitor-frame').classList.replace('scale-95', 'scale-100');
-            updateUsageDisplay(); // 表示更新
+            updateUsageDisplay();
 
             await processPdf();
         };
@@ -232,7 +246,6 @@
             if (!isProcessing) return;
 
             pdf.destroy();
-            
             mainBar.style.width = '100%';
             mainBar.classList.add('packing-mode');
             statusLabel.textContent = "Creating ZIP Archive...";
@@ -261,11 +274,10 @@
             document.body.classList.remove('processing');
         }
 
-        document.getElementById('cancel-btn').onclick = () => window.location.reload();
-
         // --- ステータス管理 ---
         async function updateUsageDisplay() {
-            const res = await fetch('/api/status');
+            // HeaderにID付与
+            const res = await fetch('/api/status', { headers: { 'x-device-id': deviceId } });
             const data = await res.json();
             if (data.is_vip) {
                 usageTag.innerHTML = '<span class="text-blue-400 font-black">VIP UNLIMITED</span>';
@@ -274,6 +286,7 @@
                 const remaining = Math.max(0, 3 - data.count);
                 usageTag.textContent = `FREE PLAN: ${remaining} / 3 REMAINING`;
                 if (remaining === 0) usageTag.classList.add('text-red-500', 'border-red-500');
+                else usageTag.classList.remove('text-red-500', 'border-red-500');
             }
         }
 
@@ -281,7 +294,10 @@
             const pass = document.getElementById('vip-pass').value;
             const res = await fetch('/api/unlock', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-device-id': deviceId // ID付与
+                },
                 body: JSON.stringify({ password: pass })
             });
             
@@ -289,13 +305,12 @@
             if (result.status === 'success') {
                 document.getElementById('vip-modal').classList.replace('flex', 'hidden');
                 updateUsageDisplay();
-                alert('VIP認証に成功しました。本日は無制限で利用可能です。');
+                alert('VIP認証成功。本日は無制限です。');
             } else {
                 alert('パスコードが違います');
             }
         }
 
-        // 初回ロード時にチェック
         updateUsageDisplay();
     </script>
 </body>
