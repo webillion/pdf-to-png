@@ -1,6 +1,10 @@
 const express = require('express');
 const path = require('path');
 const app = express();
+
+// ↓ ここ！一番最初に書くことで、最速で返事をします
+app.get('/ping', (req, res) => res.status(200).send('pong'));
+
 const PORT = process.env.PORT || 10000;
 
 // 環境変数からパスワードを取得
@@ -11,16 +15,6 @@ if (!VIP_PASSWORD) {
 }
 
 app.use(express.json());
-
-// server.js の app.use(express.json()); の直後あたりに追加
-
-app.get('/ping', (req, res) => {
-    // ログに時間を残して、起きているか確認しやすくする
-    console.log(`Ping received at: ${new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}`);
-    res.status(200).send('pong');
-});
-
-
 
 app.use(express.static(path.join(__dirname, 'templates')));
 
