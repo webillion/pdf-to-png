@@ -1,131 +1,300 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AlphaSnap Pro - Client Side</title>
+    <title>AlphaSnap | PDF to PNG Converter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        :root { --primary: #007bff; --bg: #f4f7f6; }
-        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 800px; width: 100%; text-align: center; }
-        
-        /* ボタン・コントロール */
-        .controls { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
-        .file-label, button { padding: 15px; background: var(--primary); color: white; border-radius: 8px; cursor: pointer; border: none; font-size: 18px; font-weight: bold; transition: 0.3s; text-decoration: none; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        
-        /* プログレスバー */
-        #progress-container { display: none; margin-top: 20px; width: 100%; background: #eee; border-radius: 10px; overflow: hidden; }
-        #progress-bar { width: 0%; height: 10px; background: var(--primary); transition: width 0.3s; }
-
-        /* プレビューエリア */
-        #preview-container { margin-top: 30px; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; width: 100%; }
-        .page-card { background: #eee; padding: 10px; border-radius: 8px; position: relative; }
-        .page-card img { width: 100%; height: auto; border-radius: 4px; display: block; }
-        .page-num { margin-top: 5px; font-size: 12px; color: #666; }
-
-        @media (min-width: 769px) {
-            .controls { flex-direction: row; justify-content: center; }
-            button, .file-label { width: auto; min-width: 180px; }
-        }
+        body { background-color: #050505; color: #e2e8f0; font-family: 'Inter', sans-serif; overflow: hidden; height: 100vh; }
+        .checkerboard { background-image: linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%); background-size: 20px 20px; background-color: #111; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .progress-glow { box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .spinner { animation: rotate 1s linear infinite; }
     </style>
 </head>
-<body>
+<body class="flex flex-col">
 
-<div class="container">
-    <h1>AlphaSnap Pro</h1>
-    <p>ブラウザで直接変換するため、容量制限なしで安全です</p>
+    <header class="h-16 border-b border-white/10 flex items-center px-6 justify-between z-50 bg-black/50">
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+                <i data-lucide="zap" class="text-blue-500 fill-blue-500 w-5 h-5"></i>
+                <span class="font-black tracking-tighter text-xl">ALPHASNAP</span>
+            </div>
+            <div id="usage-tag" class="text-[10px] font-bold text-slate-500 border border-white/10 px-3 py-1 rounded-full cursor-pointer hover:bg-white/5" onclick="showVipModal()">
+                LOADING...
+            </div>
+        </div>
 
-    <div class="controls">
-        <input type="file" id="file-input" style="display:none;" accept="application/pdf">
-        <label for="file-input" class="file-label">PDFを選択</label>
-        <button id="convert-btn" disabled>変換開始</button>
+        <div id="nav-actions" class="flex gap-3">
+            <button id="convert-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-lg text-sm transition-all disabled:opacity-50">START CONVERSION</button>
+            <button id="download-btn" class="hidden bg-green-600 hover:bg-green-500 text-white font-bold px-6 py-2 rounded-lg text-sm transition-all flex items-center gap-2">
+                <i data-lucide="download" class="w-4 h-4"></i> DOWNLOAD ZIP
+            </button>
+            <button id="cancel-btn" class="hidden text-slate-400 hover:text-white text-xs font-bold px-4">CANCEL</button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+        <aside class="w-72 border-r border-white/10 p-6 flex flex-col gap-6 bg-black/20">
+            <div>
+                <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 block">Source PDF</label>
+                <div id="drop-zone" class="h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center p-4 text-center hover:border-blue-500 transition-all cursor-pointer group">
+                    <input type="file" id="file-input" class="hidden" accept="application/pdf">
+                    <div id="drop-ui">
+                        <i data-lucide="plus" class="w-6 h-6 mb-2 text-slate-500 group-hover:text-blue-500"></i>
+                        <span class="text-[10px] font-bold text-slate-500">DROP FILE</span>
+                    </div>
+                    <div id="file-ready-ui" class="hidden w-full">
+                        <p id="file-name-display" class="text-blue-400 font-bold text-[10px] truncate"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Options</label>
+                <div class="flex items-center justify-between p-3 glass rounded-xl">
+                    <span class="text-xs font-medium">Transparent Background</span>
+                    <input type="checkbox" id="transparent-toggle" checked class="w-4 h-4 rounded bg-slate-800 border-none">
+                </div>
+            </div>
+
+            <div id="status-card" class="mt-auto p-4 glass rounded-2xl hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <span id="process-label" class="text-[10px] font-black text-blue-400 uppercase">Processing</span>
+                    <span id="percent-label" class="text-lg font-black italic">0%</span>
+                </div>
+                <div class="w-full bg-white/5 h-1.5 rounded-full overflow-hidden mb-3">
+                    <div id="progress-bar" class="h-full bg-blue-500 w-0 transition-all duration-300 progress-glow"></div>
+                </div>
+                <div class="flex justify-between text-[10px] font-bold text-slate-500">
+                    <span id="page-count">PAGE 0 / 0</span>
+                    <span id="time-estimate">--:--</span>
+                </div>
+            </div>
+        </aside>
+
+        <section class="flex-1 bg-black flex flex-col items-center justify-center p-8 relative">
+            <div id="preview-container" class="w-full max-w-lg aspect-[1/1.41] checkerboard rounded-lg shadow-2xl overflow-hidden border border-white/10 relative group scale-95 opacity-50 transition-all duration-700">
+                <img id="main-preview" class="w-full h-full object-contain">
+                <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-[.processing]:opacity-100 transition-opacity">
+                    <i data-lucide="refresh-cw" class="w-12 h-12 text-blue-500 spinner"></i>
+                </div>
+            </div>
+            
+            <div id="success-overlay" class="absolute inset-0 bg-black/90 hidden items-center justify-center z-40">
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500/30">
+                        <i data-lucide="check" class="w-8 h-8"></i>
+                    </div>
+                    <h2 class="text-2xl font-black mb-2">CONVERSION COMPLETE</h2>
+                    <p class="text-slate-500 text-sm mb-8">Your files are ready for download.</p>
+                    <button onclick="location.reload()" class="px-8 py-3 glass rounded-xl text-xs font-bold hover:bg-white/10">CONVERT ANOTHER</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="vip-modal" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[100] p-6">
+        <div class="max-w-sm w-full glass p-8 rounded-[32px] text-center border border-white/10">
+            <h3 class="text-xl font-black mb-2 italic uppercase">Unlock Access</h3>
+            <p class="text-slate-500 text-xs font-bold mb-6">DAILY LIMIT REACHED (3/3)</p>
+            <input type="password" id="vip-pass" placeholder="ENTER PASSCODE" class="w-full bg-white/5 border border-white/10 p-4 rounded-xl mb-4 text-center font-mono focus:border-blue-500 outline-none">
+            <button onclick="unlockVip()" class="w-full py-4 bg-white text-black font-black rounded-xl hover:bg-slate-200 transition-all text-xs uppercase tracking-tighter">Authorize Device</button>
+            <button onclick="hideVipModal()" class="mt-4 text-[10px] text-slate-500 font-bold uppercase">Close</button>
+        </div>
     </div>
 
-    <div id="progress-container">
-        <div id="progress-bar"></div>
-    </div>
+    <script>
+        lucide.createIcons();
 
-    <div id="preview-container"></div>
-</div>
-
-<script>
-    const pdfjsLib = window['pdfjs-dist/build/pdf'];
-    // ライブラリのワーカー設定（高速化のため）
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-    const fileInput = document.getElementById('file-input');
-    const convertBtn = document.getElementById('convert-btn');
-    const previewContainer = document.getElementById('preview-container');
-    const progressBar = document.getElementById('progress-bar');
-    const progressContainer = document.getElementById('progress-container');
-
-    let pdfData = null;
-
-    // ファイルが選択されたら
-    fileInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                pdfData = new Uint8Array(event.target.result);
-                convertBtn.disabled = false;
-                alert('PDFを読み込みました。「変換開始」を押してください。');
-            };
-            reader.readAsArrayBuffer(file);
-        }
-    });
-
-    // 変換処理
-    convertBtn.addEventListener('click', async () => {
-        if (!pdfData) return;
-
-        convertBtn.disabled = true;
-        previewContainer.innerHTML = '';
-        progressContainer.style.display = 'block';
-        
-        try {
-            const pdf = await pdfjsLib.getDocument({data: pdfData}).promise;
-            const totalPages = pdf.numPages;
-
-            for (let i = 1; i <= totalPages; i++) {
-                const page = await pdf.getPage(i);
-                const viewport = page.getViewport({scale: 2.0}); // 解像度2倍
-
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-
-                await page.render({canvasContext: context, viewport: viewport}).promise;
-
-                // PNGに変換
-                const imgUrl = canvas.toDataURL('image/png');
-                
-                // 画面に追加
-                const card = document.createElement('div');
-                card.className = 'page-card';
-                card.innerHTML = `
-                    <img src="${imgUrl}" alt="Page ${i}">
-                    <div class="page-num">Page ${i}</div>
-                    <a href="${imgUrl}" download="page_${i}.png" style="font-size:12px; color:blue;">保存</a>
-                `;
-                previewContainer.appendChild(card);
-
-                // 進捗更新
-                const progress = (i / totalPages) * 100;
-                progressBar.style.width = progress + '%';
+        // Constants
+        const deviceId = (() => {
+            let id = localStorage.getItem('alpha_device_id');
+            if (!id) {
+                id = 'dev_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('alpha_device_id', id);
             }
-            alert('すべての変換が完了しました！');
-        } catch (error) {
-            console.error(error);
-            alert('エラーが発生しました。ファイルが壊れている可能性があります。');
-        } finally {
-            convertBtn.disabled = false;
-        }
-    });
-</script>
+            return id;
+        })();
 
+        let isProcessing = false;
+        let currentFile = null;
+        let zipResultBlob = null;
+
+        // Elements
+        const fileInput = document.getElementById('file-input');
+        const convertBtn = document.getElementById('convert-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const progressBar = document.getElementById('progress-bar');
+        const pageCountEl = document.getElementById('page-count');
+        const statusCard = document.getElementById('status-card');
+
+        // File Selection
+        document.getElementById('drop-zone').onclick = () => fileInput.click();
+        fileInput.onchange = (e) => handleFile(e.target.files[0]);
+        window.ondragover = (e) => e.preventDefault();
+        window.ondrop = (e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); };
+
+        function handleFile(file) {
+            if (file?.type === 'application/pdf') {
+                currentFile = file;
+                document.getElementById('file-ready-ui').classList.remove('hidden');
+                document.getElementById('drop-ui').classList.add('hidden');
+                document.getElementById('file-name-display').textContent = file.name;
+                document.getElementById('preview-container').style.opacity = "1";
+                document.getElementById('preview-container').style.transform = "scale(1)";
+            }
+        }
+
+        // Logic
+        convertBtn.onclick = async () => {
+            if (!currentFile || isProcessing) return;
+
+            const res = await fetch('/api/status', { headers: { 'x-device-id': deviceId } });
+            const status = await res.json();
+            if (status.count >= 3 && !status.is_vip) return showVipModal();
+
+            await fetch('/api/increment', { method: 'POST', headers: { 'x-device-id': deviceId } });
+
+            startConversion();
+        };
+
+        async function startConversion() {
+            isProcessing = true;
+            convertBtn.disabled = true;
+            convertBtn.textContent = "PROCESSING...";
+            cancelBtn.classList.remove('hidden');
+            statusCard.classList.remove('hidden');
+            document.getElementById('preview-container').classList.add('processing');
+
+            const zip = new JSZip();
+            const pdfData = await currentFile.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({data: pdfData, verbosity: 0}).promise;
+            const total = pdf.numPages;
+            const isTransparent = document.getElementById('transparent-toggle').checked;
+
+            let processed = 0;
+            const concurrency = Math.min(navigator.hardwareConcurrency || 4, 8);
+            const queue = Array.from({length: total}, (_, i) => i + 1);
+
+            const startTime = Date.now();
+
+            const worker = async () => {
+                while (queue.length > 0 && isProcessing) {
+                    const pageNum = queue.shift();
+                    const page = await pdf.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: 2.0 });
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d', { alpha: true });
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+
+                    await page.render({ canvasContext: ctx, viewport, background: 'transparent' }).promise;
+
+                    if (isTransparent) {
+                        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const data = new Uint32Array(img.data.buffer);
+                        for (let i = 0; i < data.length; i++) {
+                            if ((data[i] & 0x00FFFFFF) === 0x00FFFFFF) data[i] = 0;
+                        }
+                        ctx.putImageData(img, 0, 0);
+                    }
+
+                    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+                    zip.file(`${pageNum}.png`, blob);
+
+                    processed++;
+                    updateUI(processed, total, startTime, canvas.toDataURL());
+                    
+                    // Cleanup to save memory
+                    canvas.width = 0; canvas.height = 0;
+                }
+            };
+
+            await Promise.all(Array(concurrency).fill(null).map(worker));
+
+            if (!isProcessing) return;
+
+            // Phase 2: Packing
+            document.getElementById('process-label').textContent = "Finalizing ZIP Archive...";
+            document.getElementById('process-label').classList.add('text-green-400');
+            
+            zipResultBlob = await zip.generateAsync({ type: "blob", compression: "STORE" });
+            
+            finishUI();
+        }
+
+        function updateUI(current, total, startTime, previewUrl) {
+            const pc = Math.floor((current / total) * 100);
+            progressBar.style.width = `${pc}%`;
+            document.getElementById('percent-label').textContent = `${pc}%`;
+            pageCountEl.textContent = `PAGE ${current} / ${total}`;
+            
+            if (current % 2 === 0) document.getElementById('main-preview').src = previewUrl;
+
+            // Simple time estimate
+            const elapsed = (Date.now() - startTime) / 1000;
+            const remaining = Math.round((elapsed / current) * (total - current));
+            if (remaining > 0) document.getElementById('time-estimate').textContent = `${remaining}s LEFT`;
+        }
+
+        function finishUI() {
+            isProcessing = false;
+            document.getElementById('preview-container').classList.remove('processing');
+            convertBtn.classList.add('hidden');
+            cancelBtn.classList.add('hidden');
+            downloadBtn.classList.remove('hidden');
+            document.getElementById('success-overlay').classList.replace('hidden', 'flex');
+        }
+
+        downloadBtn.onclick = () => {
+            if (!zipResultBlob) return;
+            const url = URL.createObjectURL(zipResultBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `AlphaSnap_${Date.now()}.zip`;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+        };
+
+        cancelBtn.onclick = () => location.reload();
+
+        async function updateUsage() {
+            const res = await fetch('/api/status', { headers: { 'x-device-id': deviceId } });
+            const data = await res.json();
+            const usageTag = document.getElementById('usage-tag');
+            if (data.is_vip) {
+                usageTag.innerHTML = `<span class="text-blue-500">VIP MEMBER</span>`;
+            } else {
+                usageTag.textContent = `FREE: ${Math.max(0, 3 - data.count)} / 3 LEFT`;
+            }
+        }
+
+        function showVipModal() { document.getElementById('vip-modal').classList.replace('hidden', 'flex'); }
+        function hideVipModal() { document.getElementById('vip-modal').classList.replace('flex', 'hidden'); }
+
+        async function unlockVip() {
+            const password = document.getElementById('vip-pass').value;
+            const res = await fetch('/api/unlock', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },
+                body: JSON.stringify({ password })
+            });
+            if (res.ok) location.reload();
+            else alert('Invalid Passcode');
+        }
+
+        updateUsage();
+    </script>
 </body>
 </html>
+
+
+
