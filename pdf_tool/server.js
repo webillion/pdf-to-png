@@ -81,12 +81,4 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'templates', 'index.html'));
 });
 
-// --- ここを追加 ---
-// 生存確認（Health Check）用の軽量API
-// cron-job.org には このURL (https://あなたのURL/health) を登録する
-app.get('/health', (req, res) => {
-    res.status(200).send('OK');
-});
-// ----------------
-
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
