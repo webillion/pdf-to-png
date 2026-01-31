@@ -86,6 +86,10 @@
                     <span id="time-estimate">--:--</span>
                 </div>
             </div>
+
+            <div class="mt-2 text-center">
+                <a id="openTerms" class="text-[10px] text-slate-600 hover:text-slate-400 cursor-pointer transition-colors uppercase font-bold tracking-widest">Terms of Service</a>
+            </div>     
         </aside>
 
         <section class="flex-1 bg-black flex flex-col items-center justify-center p-8 relative">
@@ -118,7 +122,30 @@
             <button onclick="hideVipModal()" class="mt-4 text-[10px] text-slate-500 font-bold uppercase">Close</button>
         </div>
     </div>
+    <div id="terms-modal" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[110] p-6">
+        <div class="max-w-xl w-full glass p-8 rounded-[32px] border border-white/10 flex flex-col max-h-[80vh]">
+            <h3 class="text-xl font-black mb-4 italic uppercase text-center">Terms of Service</h3>
+            
+            <div class="overflow-y-auto pr-2 text-left space-y-6 text-slate-400 text-xs leading-relaxed">
+                <section>
+                    <h4 class="text-white font-bold mb-1 uppercase tracking-tighter">1. VIP ACCESS</h4>
+                    <p>VIPパスワードは購入者本人のみが利用可能です。第三者への譲渡、公開、転売は固く禁止します。流出が確認された場合、事前の通知なく無効化します。</p>
+                </section>
 
+                <section>
+                    <h4 class="text-blue-500 font-bold mb-1 uppercase tracking-tighter italic">2. IMPORTANT: Persistence</h4>
+                    <p>本サービスは動作の軽量化とプライバシー保護のため、認証状態を一時的なメモリに保存しています。<strong>サーバーの再起動等により、VIP状態が解除され再度パスワード入力を求められる場合があります</strong>が、これは仕様です。パスワードを再入力することで復帰可能です。</p>
+                </section>
+
+                <section>
+                    <h4 class="text-white font-bold mb-1 uppercase tracking-tighter">3. REFUND POLICY</h4>
+                    <p>商品の性質上、パスワード発行後の返金には応じられません。第2条の仕様を理由とした返金も受け付けないものとします。</p>
+                </section>
+            </div>
+
+            <button id="closeTermsBtn" class="mt-8 w-full py-4 glass text-white font-black rounded-xl hover:bg-white/10 transition-all text-xs uppercase tracking-tighter">Close</button>
+        </div>
+    </div>
     <script>
         lucide.createIcons();
 
@@ -300,10 +327,19 @@
             else alert('Invalid Passcode');
         }
 
+        // 利用規約の表示制御
+        const termsModal = document.getElementById('terms-modal');
+        document.getElementById('openTerms').onclick = () => termsModal.classList.replace('hidden', 'flex');
+        document.getElementById('closeTermsBtn').onclick = () => termsModal.classList.replace('flex', 'hidden');
+        
+        // モーダル外クリックで閉じる
+        termsModal.onclick = (e) => { if(e.target === termsModal) termsModal.classList.replace('flex', 'hidden'); };
+        
         updateUsage();
     </script>
 </body>
 </html>
+
 
 
 
