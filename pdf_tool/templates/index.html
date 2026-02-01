@@ -41,7 +41,7 @@
         </div>
 
         <div id="nav-actions" class="flex gap-3">
-            <button id="convert-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-lg text-sm transition-all disabled:opacity-50">START CONVERSION</button>
+            <button id="convert-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-lg text-sm transition-all disabled:opacity-50">変換開始</button>
             <button id="download-btn" class="hidden bg-green-600 hover:bg-green-500 text-white font-bold px-6 py-2 rounded-lg text-sm transition-all flex items-center gap-2">
                 <i data-lucide="download" class="w-4 h-4"></i> DOWNLOAD ZIP
             </button>
@@ -52,12 +52,12 @@
     <main class="flex-1 flex overflow-hidden">
         <aside class="w-72 border-r border-white/10 p-6 flex flex-col gap-6 bg-black/20">
             <div>
-                <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 block">Source PDF</label>
+                <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 block">以下のPDF変換する</label>
                 <div id="drop-zone" class="h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center p-4 text-center hover:border-blue-500 transition-all cursor-pointer group">
                     <input type="file" id="file-input" class="hidden" accept="application/pdf">
                     <div id="drop-ui">
                         <i data-lucide="plus" class="w-6 h-6 mb-2 text-slate-500 group-hover:text-blue-500"></i>
-                        <span class="text-[10px] font-bold text-slate-500">DROP FILE</span>
+                        <span class="text-[10px] font-bold text-slate-500">ファイルをクリックして選択<br>もしくは<br>ドラック＆ドロップしてください</span>
                     </div>
                     <div id="file-ready-ui" class="hidden w-full">
                         <p id="file-name-display" class="text-blue-400 font-bold text-[10px] truncate"></p>
@@ -66,9 +66,9 @@
             </div>
 
             <div class="space-y-4">
-                <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Options</label>
+                <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block">オプション</label>
                 <div class="flex items-center justify-between p-3 glass rounded-xl">
-                    <span class="text-xs font-medium">Transparent Background</span>
+                    <span class="text-xs font-medium">背景を透明にする</span>
                     <input type="checkbox" id="transparent-toggle" checked class="w-4 h-4 rounded bg-slate-800 border-none">
                 </div>
             </div>
@@ -88,7 +88,7 @@
             </div>
 
             <div class="mt-2 text-center">
-                <a id="openTerms" class="text-[10px] text-slate-600 hover:text-slate-400 cursor-pointer transition-colors uppercase font-bold tracking-widest">Terms of Service</a>
+                <a id="openTerms" class="text-[10px] text-slate-600 hover:text-slate-400 cursor-pointer transition-colors uppercase font-bold tracking-widest">ご利用にあたって</a>
             </div>     
         </aside>
 
@@ -124,7 +124,7 @@
     </div>
     <div id="terms-modal" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[110] p-6">
         <div class="max-w-xl w-full glass p-8 rounded-[32px] border border-white/10 flex flex-col max-h-[80vh]">
-            <h3 class="text-xl font-black mb-4 italic uppercase text-center">Terms of Service</h3>
+            <h3 class="text-xl font-black mb-4 italic uppercase text-center">ご利用にあたって</h3>
             
             <div class="overflow-y-auto pr-2 text-left space-y-6 text-slate-400 text-xs leading-relaxed">
                 <section>
@@ -133,12 +133,12 @@
                 </section>
 
                 <section>
-                    <h4 class="text-blue-500 font-bold mb-1 uppercase tracking-tighter italic">2. IMPORTANT: Persistence</h4>
+                    <h4 class="text-blue-500 font-bold mb-1 uppercase tracking-tighter italic">2. 重要: 注意点</h4>
                     <p>本サービスは動作の軽量化とプライバシー保護のため、認証状態を一時的なメモリに保存しています。<strong>サーバーの再起動等により、VIP状態が解除され再度パスワード入力を求められる場合があります</strong>が、これは仕様です。パスワードを再入力することで復帰可能です。</p>
                 </section>
 
                 <section>
-                    <h4 class="text-white font-bold mb-1 uppercase tracking-tighter">3. REFUND POLICY</h4>
+                    <h4 class="text-white font-bold mb-1 uppercase tracking-tighter">3. ご返金について</h4>
                     <p>商品の性質上、パスワード発行後の返金には応じられません。第2条の仕様を理由とした返金も受け付けないものとします。</p>
                 </section>
             </div>
@@ -307,9 +307,9 @@
             const data = await res.json();
             const usageTag = document.getElementById('usage-tag');
             if (data.is_vip) {
-                usageTag.innerHTML = `<span class="text-blue-500">VIP MEMBER</span>`;
+                usageTag.innerHTML = `<span class="text-blue-500">無制限利用可能</span>`;
             } else {
-                usageTag.textContent = `FREE: ${Math.max(0, 3 - data.count)} / 3 LEFT`;
+                usageTag.textContent = `利用可能回数: ${Math.max(0, 3 - data.count)} / 3 回`;
             }
         }
 
@@ -339,6 +339,7 @@
     </script>
 </body>
 </html>
+
 
 
 
