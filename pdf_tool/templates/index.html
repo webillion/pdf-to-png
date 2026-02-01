@@ -115,13 +115,14 @@
 
     <div id="vip-modal" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[100] p-6">
         <div class="max-w-sm w-full glass p-8 rounded-[32px] text-center border border-white/10">
-            <h3 class="text-xl font-black mb-2 italic uppercase">Unlock Access</h3>
-            <p class="text-slate-500 text-xs font-bold mb-6">DAILY LIMIT REACHED (3/3)</p>
-            <p class="text-slate-500 text-xs font-bold mb-6 uppercase">利用制限: <span id="modal-usage-count">0</span> / 3 Reached</p>
-            <input type="password" id="vip-pass" placeholder="ENTER PASSCODE" class="w-full bg-white/5 border border-white/10 p-4 rounded-xl mb-4 text-center font-mono focus:border-blue-500 outline-none">
-            <button onclick="unlockVip()" class="w-full py-4 bg-white text-black font-black rounded-xl hover:bg-slate-200 transition-all text-xs uppercase tracking-tighter">Authorize Device</button>
-            <button onclick="hideVipModal()" class="mt-4 text-[10px] text-slate-500 font-bold uppercase">Close</button>
-        </div>
+        <h3 class="text-xl font-black mb-2 italic uppercase">Unlock Access</h3>
+        <p id="modal-status-text" class="text-slate-500 text-xs font-bold mb-6 uppercase">
+            FREE LIMIT: <span id="modal-usage-left" class="text-blue-500">3</span> / 3 LEFT
+        </p>
+    <input type="password" id="vip-pass" placeholder="ENTER PASSCODE" class="w-full bg-white/5 border border-white/10 p-4 rounded-xl mb-4 text-center font-mono focus:border-blue-500 outline-none">
+    <button onclick="unlockVip()" class="w-full py-4 bg-white text-black font-black rounded-xl hover:bg-slate-200 transition-all text-xs uppercase tracking-tighter">Authorize Device</button>
+    <button onclick="hideVipModal()" class="mt-4 text-[10px] text-slate-500 font-bold uppercase">Close</button>
+</div>
     </div>
     <div id="terms-modal" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[110] p-6">
         <div class="max-w-xl w-full glass p-8 rounded-[32px] border border-white/10 flex flex-col max-h-[80vh]">
@@ -304,24 +305,38 @@
         cancelBtn.onclick = () => location.reload();
 
         async function updateUsage() {
-            const res = await fetch('/api/status', { headers: { 'x-device-id': deviceId } });
-            const data = await res.json();
-            const usageTag = document.getElementById('usage-tag');
-            const modalUsage = document.getElementById('modal-usage-count'); // 追加
-            
-            if (data.is_vip) {
-                usageTag.innerHTML = `<span class="text-blue-500 font-black">VIP MEMBER</span>`;
-                if(modalUsage) modalUsage.parentElement.textContent = "VIP STATUS: UNLIMITED"; // VIPなら表示変更
+    const res = await fetch('/api/status', { headers: { 'x-device-id': deviceId } });
+    const data = await res.json();
+    
+    const usageTag = document.getElementById('usage-tag');
+    const modalLeft = document.getElementById('modal-usage-left');
+    const modalStatusText = document.getElementById('modal-status-text');
+    
+    // 残り回数を計算 (最大3回)
+    const remaining = Math.max(0, 3 - data.count);
+
+    if (data.is_vip) {
+        // VIPの場合
+        usageTag.innerHTML = `<span class="text-blue-500 font-black">VIP MEMBER</span>`;
+        if (modalStatusText) {
+            modalStatusText.innerHTML = `<span class="text-blue-400">STATUS: UNLIMITED ACCESS</span>`;
+        }
+    } else {
+        // 無料ユーザーの場合
+        usageTag.textContent = `FREE: ${remaining} / 3 LEFT`;
+        
+        // モーダル内のカウントダウン表示
+        if (modalLeft) {
+            modalLeft.textContent = remaining;
+            // 残り0回なら文字を赤くして警告感を出す
+            if (remaining === 0) {
+                modalLeft.classList.replace('text-blue-500', 'text-red-500');
             } else {
-                const remaining = Math.max(0, 3 - data.count);
-                usageTag.textContent = `FREE: ${remaining} / 3 LEFT`;
-                
-                // モーダル内の数字も連動して更新
-                if(modalUsage) {
-                    modalUsage.textContent = data.count; 
-                }
+                modalLeft.classList.add('text-blue-500');
             }
         }
+    }
+}
 
         function showVipModal() { document.getElementById('vip-modal').classList.replace('hidden', 'flex'); }
         function hideVipModal() { document.getElementById('vip-modal').classList.replace('flex', 'hidden'); }
@@ -349,6 +364,7 @@
     </script>
 </body>
 </html>
+
 
 
 
