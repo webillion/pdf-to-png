@@ -117,7 +117,7 @@
         <div class="max-w-sm w-full glass p-8 rounded-[32px] text-center border border-white/10">
         <h3 class="text-xl font-black mb-2 italic uppercase">Unlock Access</h3>
         <p id="modal-status-text" class="text-slate-500 text-xs font-bold mb-6 uppercase">
-            FREE LIMIT: <span id="modal-usage-left" class="text-blue-500">3</span> / 3 LEFT
+            FREE LIMIT(無料枠): <span id="modal-usage-left" class="text-blue-500">3</span> / 3 LEFT
         </p>
     <input type="password" id="vip-pass" placeholder="ENTER PASSCODE" class="w-full bg-white/5 border border-white/10 p-4 rounded-xl mb-4 text-center font-mono focus:border-blue-500 outline-none">
     <button onclick="unlockVip()" class="w-full py-4 bg-white text-black font-black rounded-xl hover:bg-slate-200 transition-all text-xs uppercase tracking-tighter">Authorize Device</button>
@@ -326,7 +326,7 @@
         }
     } else {
         // 無料ユーザーの場合
-        usageTag.textContent = `FREE: ${remaining} / 3 LEFT`;
+        usageTag.textContent = `FREE(無料枠): ${remaining} / 3 LEFT`;
         
         // モーダル内のカウントダウン表示
         if (modalLeft) {
@@ -367,6 +367,7 @@
     </script>
 </body>
 </html>
+
 
 
 
