@@ -24,7 +24,7 @@ const getValidPasswords = () => {
 // 起動時に設定を確認
 const validPasswords = getValidPasswords();
 if (validPasswords.length === 0) {
-    console.warn("⚠️ 警告: VIP_PASSWORD が設定されていません。VIP機能は利用できません。");
+    console.warn("⚠️ 警告: VIP_PASSWORD が設定されていません。VIP機能は利用できません。<br>Warning: VIP_PASSWORD environment variable is missing. Authentication functionality is unavailable.");
 }
 
 /**
