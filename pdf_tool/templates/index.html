@@ -41,11 +41,11 @@
         </div>
 
         <div id="nav-actions" class="flex gap-3">
-            <button id="convert-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-lg text-sm transition-all disabled:opacity-50">変換開始</button>
+            <button id="convert-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-lg text-sm transition-all disabled:opacity-50">START CONVERSION(変換開始)</button>
             <button id="download-btn" class="hidden bg-green-600 hover:bg-green-500 text-white font-bold px-6 py-2 rounded-lg text-sm transition-all flex items-center gap-2">
                 <i data-lucide="download" class="w-4 h-4"></i> DOWNLOAD ZIP
             </button>
-            <button id="cancel-btn" class="hidden text-slate-400 hover:text-white text-xs font-bold px-4">CANCEL</button>
+            <button id="cancel-btn" class="hidden text-slate-400 hover:text-white text-xs font-bold px-4">CANCEL(キャンセル)</button>
         </div>
     </header>
 
@@ -66,7 +66,7 @@
             </div>
 
             <div class="space-y-4">
-                <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block">オプション</label>
+                <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Options(オプション)</label>
                 <div class="flex items-center justify-between p-3 glass rounded-xl">
                     <span class="text-xs font-medium">背景を透明にする</span>
                     <input type="checkbox" id="transparent-toggle" checked class="w-4 h-4 rounded bg-slate-800 border-none">
@@ -88,7 +88,7 @@
             </div>
 
             <div class="mt-2 text-center">
-                <a id="openTerms" class="text-[10px] text-slate-600 hover:text-slate-400 cursor-pointer transition-colors uppercase font-bold tracking-widest">ご利用にあたって</a>
+                <a id="openTerms" class="text-[10px] text-slate-600 hover:text-slate-400 cursor-pointer transition-colors uppercase font-bold tracking-widest">Terms of Service(ご利用にあたって)</a>
             </div>     
         </aside>
 
@@ -131,16 +131,19 @@
             <div class="overflow-y-auto pr-2 text-left space-y-6 text-slate-400 text-xs leading-relaxed">
                 <section>
                     <h4 class="text-white font-bold mb-1 uppercase tracking-tighter">1. VIP ACCESS</h4>
+                    <p>VIP PASSCODES ARE FOR PERSONAL USE ONLY. REDISTRIBUTION, RESALE, OR PUBLIC SHARING IS STRICTLY PROHIBITED. VIOLATIONS WILL RESULT IN PERMANENT REVOCATION OF ACCESS WITHOUT PRIOR NOTICE.</p>
                     <p>VIPパスワードは購入者本人のみが利用可能です。第三者への譲渡、公開、転売は固く禁止します。流出が確認された場合、事前の通知なく無効化します。</p>
                 </section>
 
                 <section>
-                    <h4 class="text-blue-500 font-bold mb-1 uppercase tracking-tighter italic">2. 重要: 注意点</h4>
+                    <h4 class="text-blue-500 font-bold mb-1 uppercase tracking-tighter italic">2. IMPORTANT: PERSISTENCE & SESSION(2. 重要: 注意点)</h4>
+                    <p>To ensure maximum privacy and speed, your authentication status is stored in temporary server memory. Please note that the VIP status may be reset due to server reboots or system updates. In such cases, simply re-enter your passcode to restore access.</p>
                     <p>本サービスは動作の軽量化とプライバシー保護のため、認証状態を一時的なメモリに保存しています。<strong>サーバーの再起動等により、VIP状態が解除され再度パスワード入力を求められる場合があります</strong>が、これは仕様です。パスワードを再入力することで復帰可能です。</p>
                 </section>
 
                 <section>
-                    <h4 class="text-white font-bold mb-1 uppercase tracking-tighter">3. ご返金について</h4>
+                    <h4 class="text-white font-bold mb-1 uppercase tracking-tighter">3. REFUND POLICY(3. ご返金について)</h4>
+                    <p>Due to the digital nature of this product, all sales are final. No refunds will be issued once a passcode has been generated, including cases related to the session resets described in Section 2.</p>
                     <p>商品の性質上、パスワード発行後の返金には応じられません。第2条の仕様を理由とした返金も受け付けないものとします。</p>
                 </section>
             </div>
@@ -364,6 +367,7 @@
     </script>
 </body>
 </html>
+
 
 
 
