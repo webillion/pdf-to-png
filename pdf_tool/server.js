@@ -3,56 +3,55 @@ const path = require('path');
 const app = express();
 
 /**
- * 1. 最速レスポンス設定 (cron-job.org / 生存確認用)
- * 他の処理よりも前に書くことで、サーバーが起きていることを即座に証明します。
+ * 1. 最速レスポンス設定 (生存確認用)
  */
 app.get('/ping', (req, res) => res.status(200).send('pong'));
 
-// Renderのデフォルトポート、または10000番を使用
+// ポート設定
 const PORT = process.env.PORT || 10000;
 
 /**
- * 2. 複数パスワードの読み込み
- * 環境変数 VIP_PASSWORD をカンマ区切りでリスト化します。
- * 例: "pass1,pass2,pass3" -> ["pass1", "pass2", "pass3"]
+ * 2. VIPパスワード設定の読み込み
  */
 const getValidPasswords = () => {
     const rawPasswords = process.env.VIP_PASSWORD || "";
     return rawPasswords.split(',').map(p => p.trim()).filter(p => p !== "");
 };
 
-// 起動時に設定を確認
+// 起動時に設定確認
 const validPasswords = getValidPasswords();
 if (validPasswords.length === 0) {
-    console.warn("⚠️ 警告: VIP_PASSWORD が設定されていません。VIP機能は利用できません。<br>Warning: VIP_PASSWORD environment variable is missing. Authentication functionality is unavailable.");
+    console.warn("⚠️ Warning: VIP_PASSWORD environment variable is missing.");
 }
 
 /**
- * 3. ミドルウェア設定
+ * 3. ミドルウェア & 静的ファイル設定
+ * 【重要】ルーティングの順番が SEO や画像表示の成否を分けます
  */
 app.use(express.json());
-// index.htmlがtemplatesフォルダにある場合の静的ファイル設定
+
+// A. staticフォルダを最優先で公開 (OGP画像など)
+// これにより /static/ogp-image.png が正しく画像として返されます
+app.use('/static', express.static(path.join(__dirname, 'static')));
+
+// B. templatesフォルダ内の静的ファイルを公開 (CSS/JSなど)
 app.use(express.static(path.join(__dirname, 'templates')));
 
 /**
- * 4. ユーザーデータ管理 (メモリ上の簡易保存)
- * ※サーバー再起動でリセットされますが、軽量化を優先しています。
+ * 4. ユーザーデータ管理 (メモリ保存)
  */
 const userStore = {};
 const getToday = () => new Date().toLocaleDateString('ja-JP');
 
 const initUser = (deviceId) => {
     const today = getToday();
-    // IDがない場合は制限モードで返す
     if (!deviceId) return { count: 3, date: today, isVip: false }; 
 
     if (!userStore[deviceId]) {
         userStore[deviceId] = { count: 0, date: today, isVip: false };
     } else if (userStore[deviceId].date !== today) {
-        // 日付が変わっていたらカウントをリセット
         userStore[deviceId].count = 0;
         userStore[deviceId].date = today;
-        // VIP状態は再起動や日付変更でリセットされる仕様（運用でカバー）
         userStore[deviceId].isVip = false; 
     }
     return userStore[deviceId];
@@ -80,7 +79,6 @@ app.post('/api/increment', (req, res) => {
 
     const user = initUser(deviceId);
 
-    // 非VIPかつ制限超えの場合
     if (!user.isVip && user.count >= 3) {
         return res.status(403).json({ status: 'limit_reached' });
     }
@@ -89,13 +87,11 @@ app.post('/api/increment', (req, res) => {
     res.json({ status: 'success', current_count: user.count });
 });
 
-// VIP解除 (複数パスワード対応)
+// VIP解除
 app.post('/api/unlock', (req, res) => {
     const deviceId = req.headers['x-device-id'];
     const user = initUser(deviceId);
     const inputPassword = req.body.password;
-
-    // リストの最新版を取得して照合
     const currentPasswords = getValidPasswords();
     
     if (currentPasswords.length === 0) {
@@ -111,7 +107,8 @@ app.post('/api/unlock', (req, res) => {
 });
 
 /**
- * 6. フロントエンドへのルーティング
+ * 6. フロントエンドへのルーティング (最後にする)
+ * 全てのAPIや静的ファイルに該当しなかった場合、index.html を返す
  */
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'templates', 'index.html'));
@@ -123,6 +120,7 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
     console.log(`-----------------------------------------`);
     console.log(`🚀 AlphaSnap Server Running on Port: ${PORT}`);
+    console.log(`📂 Static folder linked: /static`);
     console.log(`🔑 Valid Passwords Loaded: ${getValidPasswords().length}`);
     console.log(`-----------------------------------------`);
 });
